@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 增加圓角半徑至 28dp 營造現代感 -->
+    <corners android:radius="28dp"/>
+    <!-- 使用淺粉肉色 -->
+    <solid android:color="@color/overlay_card_bg"/>
+</shape>
