@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 修正：將父項改為系統內建的 DeviceDefault.NoActionBar 主題，不再依賴 Google Material Library -->
-    <style name="Theme.ScamDetectorApp" parent="android:Theme.DeviceDefault.NoActionBar">
+    <!-- parent: Material3 -->
+    <style name="Theme.ScamDetectorApp" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- 指定主要顏色，這會影響 MaterialButton 的預設顏色 -->
+        <item name="colorPrimary">@color/scam_primary</item>
+
         <item name="android:windowBackground">@color/scam_background</item>
         <item name="android:statusBarColor">@color/scam_background</item>
         <item name="android:navigationBarColor">@color/scam_background</item>
+
+        <!-- 確保狀態列文字顏色在深色背景下是亮的 -->
         <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

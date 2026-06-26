@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">ScamDetectorApp</string>
+    <string name="btn_end_call">結束通話</string>
 </resources>

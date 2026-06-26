@@ -1,5 +1,7 @@
 package com.example.scamdetectorapp
 
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,15 +13,33 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.colorResource
+import com.example.scamdetectorapp.data.SettingsManager
 import com.example.scamdetectorapp.presentation.screens.home.MainAppScreen
 import com.example.scamdetectorapp.presentation.screens.splash.SplashScreen
+import com.example.scamdetectorapp.service.MonitorService
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // 啟動自動防護服務 (若設定為開啟)
+        startMonitorServiceIfEnabled()
+
         setContent {
             ScamGuardTheme {
                 AppEntry()
+            }
+        }
+    }
+
+    private fun startMonitorServiceIfEnabled() {
+        val settingsManager = SettingsManager(this)
+        if (settingsManager.isProtectionEnabled) {
+            val intent = Intent(this, MonitorService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
             }
         }
     }
