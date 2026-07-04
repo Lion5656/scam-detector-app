@@ -1,5 +1,8 @@
 package com.example.scamdetectorapp.presentation.viewmodel
 
+import android.app.Application
+import android.widget.Toast
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -22,43 +25,50 @@ sealed interface ScanUiState {
 }
 
 // 修復：增加建構子參數以符合 Factory 的呼叫
-class MainViewModel(private val repository: AntiFraudRepository) : ViewModel() {
+class MainViewModel(application: Application, private val repository: AntiFraudRepository) : AndroidViewModel(application) {
     // 儲存各模式的【狀態】內容，避免切換分頁時遺失
     private val _urlState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
     private val _phoneState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
     private val _textState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
+    private val _priceState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
 
     // 儲存各模式的【輸入】內容，避免切換分頁時遺失
     private val _urlInput = MutableStateFlow("")
     private val _phoneInput = MutableStateFlow("")
     private val _textInput = MutableStateFlow("")
+    private val _priceInput = MutableStateFlow("")
 
     // 將 asStateFlow() 的結果快取起來，避免重複建立物件
     val urlState = _urlState.asStateFlow()
     val phoneState = _phoneState.asStateFlow()
     val textState = _textState.asStateFlow()
+    val priceState = _priceState.asStateFlow()
 
     // 【新增快取】在類別層級只呼叫一次 asStateFlow()
     val urlInput = _urlInput.asStateFlow()
     val phoneInput = _phoneInput.asStateFlow()
     val textInput = _textInput.asStateFlow()
+    val priceInput = _priceInput.asStateFlow()
 
     fun getState(mode: DetectionMode): StateFlow<ScanUiState> = when (mode) {
         DetectionMode.URL -> urlState
         DetectionMode.PHONE -> phoneState
         DetectionMode.TEXT -> textState
+        DetectionMode.PRICE -> priceState
     }
 
     private fun getMutableState(mode: DetectionMode): MutableStateFlow<ScanUiState> = when (mode) {
         DetectionMode.URL -> _urlState
         DetectionMode.PHONE -> _phoneState
         DetectionMode.TEXT -> _textState
+        DetectionMode.PRICE -> _priceState
     }
 
     fun getInput(mode: DetectionMode): StateFlow<String> = when (mode) {
         DetectionMode.URL -> urlInput
         DetectionMode.PHONE -> phoneInput
         DetectionMode.TEXT -> textInput
+        DetectionMode.PRICE -> priceInput
     }
 
     fun setInput(mode: DetectionMode, text: String) {
@@ -66,6 +76,7 @@ class MainViewModel(private val repository: AntiFraudRepository) : ViewModel() {
             DetectionMode.URL -> _urlInput.value = text
             DetectionMode.PHONE -> _phoneInput.value = text
             DetectionMode.TEXT -> _textInput.value = text
+            DetectionMode.PRICE -> _priceInput.value = text
         }
     }
 
@@ -83,6 +94,9 @@ class MainViewModel(private val repository: AntiFraudRepository) : ViewModel() {
                 onSuccess = { scanResult ->
                     val uiModel = mapToUiModel(scanResult)
                     stateFlow.value = ScanUiState.Success(uiModel)
+                    if (mode == DetectionMode.PRICE) {
+                        Toast.makeText(getApplication(), "商品分析傳送成功", Toast.LENGTH_SHORT).show()
+                    }
                 },
                 onFailure = { e ->
                     val (title, message) = when (e) {
@@ -144,10 +158,18 @@ class MainViewModel(private val repository: AntiFraudRepository) : ViewModel() {
     }
 
     companion object {
+        fun provideFactory(application: Application): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return MainViewModel(application, AntiFraudRepository(application)) as T
+            }
+        }
+
         val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return MainViewModel(AntiFraudRepository()) as T
+                // 為了相容性，這裡拋出一個更清楚的錯誤，或提供一個預設的（但通常 Composable 會呼叫 provideFactory）
+                throw IllegalStateException("MainViewModel requires Application. Use provideFactory(application) instead.")
             }
         }
     }

@@ -14,6 +14,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -41,9 +43,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -110,6 +115,44 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
                         fontWeight = FontWeight.Bold
                     )
                 }
+            Icon(
+                imageVector = Icons.Outlined.Shield,
+                contentDescription = "Logo",
+                tint = primaryColor,
+                modifier = Modifier.size(60.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "SCAM GUARD",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 2.sp,
+            color = onSurfaceColor
+        )
+        Text(
+            text = "您的全方位防詐護盾",
+            fontSize = 14.sp,
+            color = colorResource(R.color.scam_text_grey)
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // 新增：類廣告促銷卡片
+        PromotionBanner()
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        // --- 主動防護 ---
+        Text(
+            text = "主動防護",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = onSurfaceColor,
+            modifier = Modifier.align(Alignment.Start)
+        )
 
                 // 右上角動態小機器人 (智慧互動特效系統)
                 Box(
@@ -125,6 +168,25 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
             }
 
             Spacer(modifier = Modifier.height(40.dp))
+        // 使用新的 ProtectionFeatureCard 處理啟用狀態
+        var isProtectionEnabled by remember { mutableStateOf(settingsManager.isProtectionEnabled) }
+        ProtectionFeatureCard(
+            title = if (isProtectionEnabled) "即時防護中" else "防護未啟動",
+            desc = "通話中檢測，敏感操作防護",
+            icon = if (isProtectionEnabled)
+                Icons.Outlined.VerifiedUser
+            else
+                ImageVector.vectorResource(id = R.drawable.security_24dp),
+            isEnabled = isProtectionEnabled,
+            onCheckedChange = { checked ->
+                if (checked) {
+                    // 開啟防護時，觸發權限導覽
+                    val permissions = mutableListOf(Manifest.permission.READ_PHONE_STATE)
+                    
+                    // ANSWER_PHONE_CALLS 需要 API 26 (Android 8.0) 以上
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        permissions.add(Manifest.permission.ANSWER_PHONE_CALLS)
+                    }
 
             // --- 主動防護 ---
             Text(
@@ -356,6 +418,21 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
                 strokeWidth = 2.dp
             )
         }
+        Spacer(modifier = Modifier.height(12.dp))
+
+        FeatureCard(
+            title = "FB一頁式購物檢測",
+            desc = "貼上圖片，檢測商品價格是否正常",
+            icon = ImageVector.vectorResource(id = R.drawable.shopping_cart_24dp),
+            onClick = {onNavigateTo("購物檢測")}
+        )
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        // --- 防詐新聞預覽區塊 ---
+        NewsPreviewSection(onClick = { onNavigateTo("新聞") })
+
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
@@ -448,4 +525,86 @@ private fun hasUsageStatsPermission(context: Context): Boolean {
     val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
     val mode = @Suppress("DEPRECATION") appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
     return mode == AppOpsManager.MODE_ALLOWED
+}
+
+/**
+ * 促銷廣告橫幅組件
+ */
+@Composable
+private fun PromotionBanner() {
+    val scamPrimary = colorResource(R.color.scam_primary)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(100.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()
+            .background(
+                scamPrimary.copy(alpha = 0.1f),
+                RoundedCornerShape(8.dp)
+            )
+        ) {
+            Image(
+                painter = painterResource(R.drawable.shield_banner),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(120.dp)
+                    .align(Alignment.CenterEnd),
+                contentScale = ContentScale.Fit
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 左側藍色盾牌
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(scamPrimary.copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Shield,
+                        contentDescription = null,
+                        tint = scamPrimary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Bolt,
+                        contentDescription = null,
+                        tint = scamPrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // 文字內容
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "守護不中斷，安全每一步",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Visible
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Scam Guard 持續保護您的數位生活",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Visible
+                    )
+                }
+            }
+        }
+    }
 }
