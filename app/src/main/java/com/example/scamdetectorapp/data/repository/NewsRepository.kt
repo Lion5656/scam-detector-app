@@ -101,4 +101,32 @@ object NewsRepository {
      * 獲取前兩則新聞用於首頁預覽
      */
     fun getPreviewNews() = newsList.take(2)
+
+    /**
+     * 從真實 165 API 抓取跑馬燈數據 (包含失敗備援機制)
+     */
+    suspend fun fetch165TickerMessages(): List<String> {
+        val fallbackMessages = listOf(
+            "[提醒] 165 提醒：近期假冒「台電」、「自來水公司」欠費簡訊多發，請勿點擊連結。",
+            "[數據] 今日全台已攔截逾 3,000 筆涉詐電話與釣魚簡訊。",
+            "[熱點] 「解除分期付款」詐騙手法更新，接獲 +886 開頭電話請警覺。",
+            "[公告] 刑事局提醒：檢警辦案絕不會要求匯款或監管帳戶。"
+        )
+
+        return try {
+            // 使用 withTimeout 避免政府伺服器回應過慢導致 UI 沒反應
+            kotlinx.coroutines.withTimeout(5000) {
+                val response = com.example.scamdetectorapp.data.remote.RetrofitClient.oneSixFiveInstance.getRumors()
+                if (response.success && response.result.records.isNotEmpty()) {
+                    response.result.records.map { "[最新闢謠] ${it.title}" }
+                } else {
+                    fallbackMessages
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("NewsRepository", "165 API Connection Failed: ${e.message}")
+            // 連線失敗（如伺服器維護、網路限制）時，直接回傳精選備援訊息
+            fallbackMessages
+        }
+    }
 }

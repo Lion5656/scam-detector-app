@@ -48,4 +48,16 @@ object RetrofitClient {
             .build()
             .create(AntiFraudApi::class.java)
     }
+
+    /**
+     * 165 政府開放資料專用的 Retrofit 實例 (使用不同 BASE_URL)
+     */
+    val oneSixFiveInstance: OneSixFiveApi by lazy {
+        Retrofit.Builder()
+            .baseUrl("https://od.moi.gov.tw/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(OneSixFiveApi::class.java)
+    }
 }

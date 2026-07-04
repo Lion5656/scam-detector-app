@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.presentation.components.CustomBottomBar
+import com.example.scamdetectorapp.presentation.screens.dashboard.DashboardScreen
 import com.example.scamdetectorapp.presentation.screens.detection.GenericDetectionFlow
 
 @Composable
@@ -29,6 +30,8 @@ fun MainAppScreen() {
             when (currentTab) {
                 "首頁" -> HomeScreen(onNavigateTo = { currentTab = it })
                 
+                "儀表板" -> DashboardScreen()
+
                 "新聞" -> NewsScreen(onBack = { currentTab = "首頁" })
 
                 "網址" -> key(DetectionMode.URL) {
