@@ -12,6 +12,7 @@ import android.provider.Settings
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,8 +36,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -114,6 +119,11 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
             color = colorResource(R.color.scam_text_grey)
         )
 
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // 新增：類廣告促銷卡片
+        PromotionBanner()
+
         Spacer(modifier = Modifier.height(40.dp))
 
         // --- 主動防護 ---
@@ -132,7 +142,10 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
         ProtectionFeatureCard(
             title = if (isProtectionEnabled) "即時防護中" else "防護未啟動",
             desc = "通話中檢測，敏感操作防護",
-            icon = if (isProtectionEnabled) Icons.Outlined.VerifiedUser else Icons.Outlined.Shield,
+            icon = if (isProtectionEnabled)
+                Icons.Outlined.VerifiedUser
+            else
+                ImageVector.vectorResource(id = R.drawable.security_24dp),
             isEnabled = isProtectionEnabled,
             onCheckedChange = { checked ->
                 if (checked) {
@@ -217,11 +230,20 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
             onClick = { onNavigateTo("簡訊") }
         )
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        FeatureCard(
+            title = "FB一頁式購物檢測",
+            desc = "貼上圖片，檢測商品價格是否正常",
+            icon = ImageVector.vectorResource(id = R.drawable.shopping_cart_24dp),
+            onClick = {onNavigateTo("購物檢測")}
+        )
+
         Spacer(modifier = Modifier.height(40.dp))
 
         // --- 防詐新聞預覽區塊 ---
         NewsPreviewSection(onClick = { onNavigateTo("新聞") })
-        
+
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
@@ -467,4 +489,86 @@ private fun hasUsageStatsPermission(context: Context): Boolean {
         context.packageName
     )
     return mode == AppOpsManager.MODE_ALLOWED
+}
+
+/**
+ * 促銷廣告橫幅組件
+ */
+@Composable
+private fun PromotionBanner() {
+    val scamPrimary = colorResource(R.color.scam_primary)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(100.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()
+            .background(
+                scamPrimary.copy(alpha = 0.1f),
+                RoundedCornerShape(8.dp)
+            )
+        ) {
+            Image(
+                painter = painterResource(R.drawable.shield_banner),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(120.dp)
+                    .align(Alignment.CenterEnd),
+                contentScale = ContentScale.Fit
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 左側藍色盾牌
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(scamPrimary.copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Shield,
+                        contentDescription = null,
+                        tint = scamPrimary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Bolt,
+                        contentDescription = null,
+                        tint = scamPrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // 文字內容
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "守護不中斷，安全每一步",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Visible
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Scam Guard 持續保護您的數位生活",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Visible
+                    )
+                }
+            }
+        }
+    }
 }

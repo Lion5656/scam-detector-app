@@ -12,7 +12,9 @@ import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import com.example.scamdetectorapp.R
 
@@ -31,7 +33,9 @@ fun CustomBottomBar(currentTab: String, onTabSelected: (String) -> Unit) {
             Triple("首頁", Icons.Filled.Home, Icons.Outlined.Home),
             Triple("網址", Icons.Filled.Public, Icons.Outlined.Public),
             Triple("電話", Icons.Filled.Phone, Icons.Outlined.Phone),
-            Triple("簡訊", Icons.AutoMirrored.Filled.Message, Icons.AutoMirrored.Outlined.Message)
+            Triple("簡訊", Icons.AutoMirrored.Filled.Message, Icons.AutoMirrored.Outlined.Message),
+            Triple("購物檢測", ImageVector.vectorResource(R.drawable.shopping_cart_filled_24dp),
+                ImageVector.vectorResource(R.drawable.shopping_cart_24dp))
         )
 
         items.forEach { (title, selectedIcon, unselectedIcon) ->

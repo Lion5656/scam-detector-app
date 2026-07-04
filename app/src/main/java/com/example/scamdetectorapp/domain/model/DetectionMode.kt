@@ -1,5 +1,5 @@
 package com.example.scamdetectorapp.domain.model
 
 enum class DetectionMode {
-    URL, PHONE, TEXT
+    URL, PHONE, TEXT, PRICE
 }
