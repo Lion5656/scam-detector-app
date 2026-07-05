@@ -13,27 +13,20 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.Message
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.DataThresholding
 import androidx.compose.material.icons.filled.Newspaper
-import androidx.compose.material.icons.outlined.Phone
-import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.outlined.VerifiedUser
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,11 +39,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -66,6 +60,7 @@ import kotlinx.coroutines.launch
 fun HomeScreen(onNavigateTo: (String) -> Unit) {
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager(context) }
+    val scope = rememberCoroutineScope()
     
     val permissionsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -115,46 +110,8 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
                         fontWeight = FontWeight.Bold
                     )
                 }
-            Icon(
-                imageVector = Icons.Outlined.Shield,
-                contentDescription = "Logo",
-                tint = primaryColor,
-                modifier = Modifier.size(60.dp)
-            )
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "SCAM GUARD",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 2.sp,
-            color = onSurfaceColor
-        )
-        Text(
-            text = "您的全方位防詐護盾",
-            fontSize = 14.sp,
-            color = colorResource(R.color.scam_text_grey)
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // 新增：類廣告促銷卡片
-        PromotionBanner()
-
-        Spacer(modifier = Modifier.height(40.dp))
-
-        // --- 主動防護 ---
-        Text(
-            text = "主動防護",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = onSurfaceColor,
-            modifier = Modifier.align(Alignment.Start)
-        )
-
-                // 右上角動態小機器人 (智慧互動特效系統)
+                // 右上角動態小機器人
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -167,26 +124,12 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
                 }
             }
 
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // 促銷廣告橫幅
+            PromotionBanner()
+
             Spacer(modifier = Modifier.height(40.dp))
-        // 使用新的 ProtectionFeatureCard 處理啟用狀態
-        var isProtectionEnabled by remember { mutableStateOf(settingsManager.isProtectionEnabled) }
-        ProtectionFeatureCard(
-            title = if (isProtectionEnabled) "即時防護中" else "防護未啟動",
-            desc = "通話中檢測，敏感操作防護",
-            icon = if (isProtectionEnabled)
-                Icons.Outlined.VerifiedUser
-            else
-                ImageVector.vectorResource(id = R.drawable.security_24dp),
-            isEnabled = isProtectionEnabled,
-            onCheckedChange = { checked ->
-                if (checked) {
-                    // 開啟防護時，觸發權限導覽
-                    val permissions = mutableListOf(Manifest.permission.READ_PHONE_STATE)
-                    
-                    // ANSWER_PHONE_CALLS 需要 API 26 (Android 8.0) 以上
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        permissions.add(Manifest.permission.ANSWER_PHONE_CALLS)
-                    }
 
             // --- 主動防護 ---
             Text(
@@ -200,6 +143,7 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
 
             var isProtectionEnabled by remember { mutableStateOf(settingsManager.isProtectionEnabled) }
+            
             ProtectionFeatureCard(
                 title = if (isProtectionEnabled) "即時防護中" else "防護未啟動",
                 desc = "通話中檢測，敏感操作防護",
@@ -252,6 +196,8 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
             FeatureCard("電話檢測", "辨識騷擾與詐騙來電", Icons.Outlined.Phone, Color(0xFF00E5FF)) { onNavigateTo("電話") }
             Spacer(modifier = Modifier.height(12.dp))
             FeatureCard("簡訊檢測", "分析可疑簡訊內容", Icons.AutoMirrored.Outlined.Message, Color(0xFFD500F9)) { onNavigateTo("簡訊") }
+            Spacer(modifier = Modifier.height(12.dp))
+            FeatureCard("購物檢測", "貼上圖片，檢測商品價格是否正常", ImageVector.vectorResource(id = R.drawable.shopping_cart_24dp), Color(0xFFFFD600)) { onNavigateTo("購物檢測") }
 
             Spacer(modifier = Modifier.height(40.dp))
 
@@ -418,21 +364,6 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
                 strokeWidth = 2.dp
             )
         }
-        Spacer(modifier = Modifier.height(12.dp))
-
-        FeatureCard(
-            title = "FB一頁式購物檢測",
-            desc = "貼上圖片，檢測商品價格是否正常",
-            icon = ImageVector.vectorResource(id = R.drawable.shopping_cart_24dp),
-            onClick = {onNavigateTo("購物檢測")}
-        )
-
-        Spacer(modifier = Modifier.height(40.dp))
-
-        // --- 防詐新聞預覽區塊 ---
-        NewsPreviewSection(onClick = { onNavigateTo("新聞") })
-
-        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
@@ -442,7 +373,7 @@ private fun ProtectionFeatureCard(title: String, desc: String, icon: ImageVector
         modifier = Modifier.fillMaxWidth(),
         color = Color(0xFF121A21),
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, if (isEnabled) Color(0xFF00C853).copy(alpha = 0.3f) else Color.White.copy(alpha = 0.05f))
+        border = BorderStroke(1.dp, if (isEnabled) Color(0xFF00C853).copy(alpha = 0.3f) else Color.White.copy(alpha = 0.05f))
     ) {
         Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(48.dp).background((if (isEnabled) Color(0xFF00C853) else Color(0xFF2979FF)).copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
@@ -465,7 +396,7 @@ private fun FeatureCard(title: String, desc: String, icon: ImageVector, color: C
         modifier = Modifier.fillMaxWidth(),
         color = Color(0xFF121A21),
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.1f))
+        border = BorderStroke(1.dp, color.copy(alpha = 0.1f))
     ) {
         Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(48.dp).background(color.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
@@ -496,7 +427,7 @@ private fun NewsPreviewSection(onClick: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 color = Color(0xFF121A21),
                 shape = RoundedCornerShape(16.dp),
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.05f))
+                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.05f))
             ) {
                 Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(40.dp).background(Color(0xFF2979FF).copy(alpha = 0.1f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {

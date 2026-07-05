@@ -15,6 +15,9 @@ target_link_libraries(
         scamdetectorapp
         ${log-lib})
 
+# Enable 16 KB ELF alignment for Android 15+ compatibility
+target_link_options(scamdetectorapp PRIVATE "-Wl,-z,max-page-size=16384")
+
 # 將 Gradle 傳入的 API_KEY 定義為 C++ 的 Preprocessor Definition
 if(NOT DEFINED API_KEY)
     set(API_KEY "")
