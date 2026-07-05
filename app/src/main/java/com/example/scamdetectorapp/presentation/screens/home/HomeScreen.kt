@@ -31,6 +31,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.tooling.preview.Preview
 import com.example.scamdetectorapp.R
 import com.example.scamdetectorapp.data.SettingsManager
 import com.example.scamdetectorapp.data.repository.NewsRepository
@@ -129,7 +131,7 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
             // 促銷廣告橫幅
             PromotionBanner()
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // --- 主動防護 ---
             Text(
@@ -468,71 +470,109 @@ private fun PromotionBanner() {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Box(modifier = Modifier.fillMaxSize()
-            .background(
-                scamPrimary.copy(alpha = 0.1f),
-                RoundedCornerShape(8.dp)
+            .wrapContentHeight(), // 讓卡片高度根據內容自適應，避免過大
+        shape = RoundedCornerShape(20.dp), // 微調圓角讓比例更精緻
+        border = BorderStroke(
+            width = 1.2.dp,
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    scamPrimary.copy(alpha = 0.6f),
+                    scamPrimary.copy(alpha = 0.1f),
+                    scamPrimary.copy(alpha = 0.7f),
+                    scamPrimary.copy(alpha = 0.1f),
+                    scamPrimary.copy(alpha = 0.5f)
+                )
             )
+        ),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF121A21))
+    ) {
+        // 使用 BoxWithConstraints 作為底層，才能正確拿到寬度與 matchParentSize
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
         ) {
-            Image(
-                painter = painterResource(R.drawable.shield_banner),
-                contentDescription = null,
+            val isSmallScreen = maxWidth < 360.dp
+
+            // 1. 背景裝飾：科技感發光效果 (自適應卡片大小)
+            Box(
                 modifier = Modifier
                     .size(120.dp)
-                    .align(Alignment.CenterEnd),
-                contentScale = ContentScale.Fit
+                    .align(Alignment.Center)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(scamPrimary.copy(alpha = 0.12f), Color.Transparent)
+                        )
+                    )
             )
 
+            // 2. 科技背景：細微點狀矩陣 (使用 matchParentSize 填滿當前大小)
+            Canvas(modifier = Modifier.matchParentSize().alpha(0.08f)) {
+                val gap = 12.dp.toPx()
+                for (x in 0..size.width.toInt() step gap.toInt()) {
+                    for (y in 0..size.height.toInt() step gap.toInt()) {
+                        drawCircle(
+                            color = scamPrimary,
+                            radius = 1.dp.toPx(),
+                            center = Offset(x.toFloat(), y.toFloat())
+                        )
+                    }
+                }
+            }
+
+            // 3. 主要內容層
             Row(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxWidth()
+                    .padding(start = 10.dp, end = 24.dp, top = 36.dp, bottom = 18.dp), // 增加上方內襯間距
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center // 讓整排內容在卡片內置中
             ) {
-                // 左側藍色盾牌
+                // 圖標容器
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .background(scamPrimary.copy(alpha = 0.15f), CircleShape),
+                        .size(46.dp) // 稍微縮小一點，更符合「稍大於文字」的精緻感
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFF2979FF),
+                                    Color(0xFF00E5FF),
+                                    Color(0xFFD500F9)
+                                )
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Shield,
                         contentDescription = null,
-                        tint = scamPrimary,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Icon(
-                        imageVector = Icons.Default.Bolt,
-                        contentDescription = null,
-                        tint = scamPrimary,
-                        modifier = Modifier.size(14.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(30.dp))
 
-                // 文字內容
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    horizontalAlignment = Alignment.Start,
+                    modifier = Modifier.wrapContentSize()
+                ) {
                     Text(
-                        text = "守護不中斷，安全每一步",
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Visible
+                        text = "數位守護 ‧ 全天候命",
+                        color = Color.White,
+                        fontSize = if (isSmallScreen) 16.sp else 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp,
+                        textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Scam Guard 持續保護您的數位生活",
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Visible
+                        text = "透過 AI 技術準確攔截威脅",
+                        color = Color.Gray,
+                        fontSize = if (isSmallScreen) 12.sp else 13.sp,
+                        lineHeight = 16.sp,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
