@@ -33,7 +33,7 @@ android {
                 // 去除可能存在的引號
                 val key = rawKey.replace("\"", "").trim()
                 // 將 Key 傳入 C++ 編譯參數
-                arguments("-DAPI_KEY=$key")
+                arguments("-DAPI_KEY=$key", "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
             }
         }
 
