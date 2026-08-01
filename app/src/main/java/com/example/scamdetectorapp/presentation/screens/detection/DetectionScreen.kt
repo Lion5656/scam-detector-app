@@ -9,6 +9,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -274,6 +276,7 @@ fun InputScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState()) // Enable scrolling
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -342,7 +345,7 @@ fun InputScreen(
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(32.dp)) // Replace weight(1f) with fixed spacer
 
         Button(
             onClick = onScan,
@@ -394,6 +397,7 @@ fun PriceInputScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState()) // Enable scrolling
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -448,8 +452,7 @@ fun PriceInputScreen(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-                .heightIn(min = 250.dp)
+                .heightIn(min = 250.dp, max = 400.dp) // Flexible height instead of weight(1f)
                 .clip(RoundedCornerShape(16.dp))
                 .clickable { 
                     galleryLauncher.launch(
@@ -505,7 +508,7 @@ fun PriceInputScreen(
                         }
                         Spacer(Modifier.height(16.dp))
                         Text("點擊拍照或上傳圖片", color = textWhite, fontWeight = FontWeight.Bold)
-                        Text("支援 JPG / PNG 格式", color = textGrey, fontSize = 12.sp)
+                        Text("支援 JPG / PNG / WEBP 格式", color = textGrey, fontSize = 12.sp)
                         
                         Spacer(Modifier.height(24.dp))
                         Row {
@@ -551,7 +554,7 @@ fun PriceInputScreen(
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(32.dp)) // Replace weight(1f) with fixed spacer
 
         Button(
             onClick = onScan,

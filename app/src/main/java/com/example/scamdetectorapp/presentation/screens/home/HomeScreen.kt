@@ -13,26 +13,26 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.Message
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.DataThresholding
+import androidx.compose.material.icons.filled.Newspaper
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
@@ -41,14 +41,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.tooling.preview.Preview
 import com.example.scamdetectorapp.R
 import com.example.scamdetectorapp.data.SettingsManager
 import com.example.scamdetectorapp.data.repository.NewsRepository
@@ -61,6 +63,7 @@ import kotlinx.coroutines.launch
 fun HomeScreen(onNavigateTo: (String) -> Unit) {
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager(context) }
+    val scope = rememberCoroutineScope()
     
     val permissionsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -126,10 +129,10 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // 新增：類廣告促銷卡片
+            // 促銷廣告橫幅
             PromotionBanner()
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // --- 主動防護 ---
             Text(
@@ -143,6 +146,7 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
 
             var isProtectionEnabled by remember { mutableStateOf(settingsManager.isProtectionEnabled) }
+            
             ProtectionFeatureCard(
                 title = if (isProtectionEnabled) "即時防護中" else "防護未啟動",
                 desc = "通話中檢測，敏感操作防護",
@@ -261,7 +265,15 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
                 }
             }
         }
-        if (isCharging) { CircularProgressIndicator(modifier = Modifier.size(85.dp), color = Color.White, strokeWidth = 2.dp) }
+
+        // --- 特效層：充能外圈 ---
+        if (isCharging) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(85.dp),
+                color = Color.White,
+                strokeWidth = 2.dp
+            )
+        }
     }
 }
 
@@ -271,7 +283,7 @@ private fun ProtectionFeatureCard(title: String, desc: String, icon: ImageVector
         modifier = Modifier.fillMaxWidth(),
         color = Color(0xFF121A21),
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, if (isEnabled) Color(0xFF00C853).copy(alpha = 0.3f) else Color.White.copy(alpha = 0.05f))
+        border = BorderStroke(1.dp, if (isEnabled) Color(0xFF00C853).copy(alpha = 0.3f) else Color.White.copy(alpha = 0.05f))
     ) {
         Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(48.dp).background((if (isEnabled) Color(0xFF00C853) else Color(0xFF2979FF)).copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
@@ -294,7 +306,7 @@ private fun FeatureCard(title: String, desc: String, icon: ImageVector, color: C
         modifier = Modifier.fillMaxWidth(),
         color = Color(0xFF121A21),
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.1f))
+        border = BorderStroke(1.dp, color.copy(alpha = 0.1f))
     ) {
         Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(48.dp).background(color.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
@@ -325,7 +337,7 @@ private fun NewsPreviewSection(onClick: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 color = Color(0xFF121A21),
                 shape = RoundedCornerShape(16.dp),
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.05f))
+                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.05f))
             ) {
                 Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(40.dp).background(Color(0xFF2979FF).copy(alpha = 0.1f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
@@ -376,4 +388,124 @@ private fun hasUsageStatsPermission(context: Context): Boolean {
     val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
     val mode = @Suppress("DEPRECATION") appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
     return mode == AppOpsManager.MODE_ALLOWED
+}
+
+/**
+ * 促銷廣告橫幅組件
+ */
+@Composable
+private fun PromotionBanner() {
+    val scamPrimary = colorResource(R.color.scam_primary)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight(), // 讓卡片高度根據內容自適應，避免過大
+        shape = RoundedCornerShape(20.dp), // 微調圓角讓比例更精緻
+        border = BorderStroke(
+            width = 1.2.dp,
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    scamPrimary.copy(alpha = 0.6f),
+                    scamPrimary.copy(alpha = 0.1f),
+                    scamPrimary.copy(alpha = 0.7f),
+                    scamPrimary.copy(alpha = 0.1f),
+                    scamPrimary.copy(alpha = 0.5f)
+                )
+            )
+        ),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF121A21))
+    ) {
+        // 使用 BoxWithConstraints 作為底層，才能正確拿到寬度與 matchParentSize
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+        ) {
+            val isSmallScreen = maxWidth < 360.dp
+
+            // 1. 背景裝飾：科技感發光效果 (自適應卡片大小)
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .align(Alignment.Center)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(scamPrimary.copy(alpha = 0.12f), Color.Transparent)
+                        )
+                    )
+            )
+
+            // 2. 科技背景：細微點狀矩陣 (使用 matchParentSize 填滿當前大小)
+            Canvas(modifier = Modifier.matchParentSize().alpha(0.08f)) {
+                val gap = 12.dp.toPx()
+                for (x in 0..size.width.toInt() step gap.toInt()) {
+                    for (y in 0..size.height.toInt() step gap.toInt()) {
+                        drawCircle(
+                            color = scamPrimary,
+                            radius = 1.dp.toPx(),
+                            center = Offset(x.toFloat(), y.toFloat())
+                        )
+                    }
+                }
+            }
+
+            // 3. 主要內容層
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 10.dp, end = 24.dp, top = 36.dp, bottom = 18.dp), // 增加上方內襯間距
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center // 讓整排內容在卡片內置中
+            ) {
+                // 圖標容器
+                Box(
+                    modifier = Modifier
+                        .size(46.dp) // 稍微縮小一點，更符合「稍大於文字」的精緻感
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFF2979FF),
+                                    Color(0xFF00E5FF),
+                                    Color(0xFFD500F9)
+                                )
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Shield,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(30.dp))
+
+                Column(
+                    horizontalAlignment = Alignment.Start,
+                    modifier = Modifier.wrapContentSize()
+                ) {
+                    Text(
+                        text = "數位守護 ‧ 全天候命",
+                        color = Color.White,
+                        fontSize = if (isSmallScreen) 16.sp else 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "透過 AI 技術準確攔截威脅",
+                        color = Color.Gray,
+                        fontSize = if (isSmallScreen) 12.sp else 13.sp,
+                        lineHeight = 16.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+    }
 }
