@@ -6,17 +6,15 @@ package com.example.scamdetectorapp.presentation.model
  */
 data class PhoneGenealogyData(
     val rootNumber: String,
-    val riskScore: Float, // 規則式風險評分 (0.0 - 1.0)
-    val associationScore: Float, // 號碼關聯分數 (0.0 - 1.0)
-    val clusterId: String, // 詐騙集團類型名稱
+    val tagId: String,
     val relatedNodes: List<GenealogyNode>
 )
 
 data class GenealogyNode(
     val id: Int,
     val phoneNumber: String,
-    val relationship: String, // 關係標籤
-    val connectionStrength: Float, // 關聯強度 (0.0 - 1.0)
-    val lastActive: String = "2026/06/26",
-    val detailReason: String = ""
+    val relationship: String, // 關係標籤 (如：靜態特徵)
+    val connectionStrength: Float,
+    val lastActive: String,
+    val reasons: List<String> // 新增：具體關聯原因列表
 )

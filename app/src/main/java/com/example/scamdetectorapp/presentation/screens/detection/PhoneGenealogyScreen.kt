@@ -48,29 +48,24 @@ private data class GenealogyTextCache(
 fun PhoneGenealogyScreen(phoneNumber: String, onBack: () -> Unit) {
     var currentRoot by remember { mutableStateOf(phoneNumber) }
     var selectedNode by remember { mutableStateOf<GenealogyNode?>(null) }
-    var showMetricInfo by remember { mutableStateOf<String?>(null) }
 
-    // --- 優化點 2：模擬數據封裝與 DEBUG 模式保護 ---
     val genealogyData = remember(currentRoot) {
         if (BuildConfig.DEBUG) {
-            val scamTypes = listOf("假投資詐騙 ", "假網絡拍賣 ", "解除分期付款 / 假客服", "假愛情交友 ", "假冒機構 / 假檢警", "猜猜我是誰 / 盜用帳號", "假求職 / 騙取帳戶")
+            val scamTypes = listOf("假投資詐騙", "假網絡拍賣", "解除分期付款", "假愛情交友", "假冒機構", "猜猜我是誰", "假求職")
             PhoneGenealogyData(
                 rootNumber = currentRoot,
-                riskScore = 0.92f,
-                associationScore = 0.84f,
-                clusterId = scamTypes.random(),
+                tagId = scamTypes.random(),
                 relatedNodes = listOf(
-                    GenealogyNode(1, "0912-334-456", "相似號碼", 0.95f, "2026/06/26", "此號碼與主號碼由同一批次門號申請，具備極高同質性。"),
-                    GenealogyNode(2, "02-2310-9981", "頻繁撥打", 0.75f, "2026/06/25", "該號碼近期在同一時段內，與主號碼具備重疊的受害者名單。"),
-                    GenealogyNode(3, "0905-112-887", "同一主體", 0.88f, "2026/06/26", "根據數位足跡分析，此號碼與主號碼共用同一個註冊裝置。"),
-                    GenealogyNode(4, "0988-776-334", "行為相似", 0.65f, "2026/06/24", "兩者均呈現隨機間隔撥打特性，符合機器人撥號特徵。"),
-                    GenealogyNode(5, "0977-221-990", "報案關聯", 0.92f, "2026/06/26", "多名受害者回報，曾先後接到這兩個號碼的誘騙電話。"),
-                    GenealogyNode(6, "0800-001-001", "偽冒客服", 0.82f, "2026/06/20", "此號碼常與主號碼搭配，作為二線解除分期付款之假銀行員使用。")
+                    GenealogyNode(1, "0912-334-456", "靜態特徵", 0.95f, "2026/06/26", listOf("前綴相似 (前7碼一致)", "號碼距離極近 (連號)", "電信商一致")),
+                    GenealogyNode(2, "02-2310-9981", "行為共現", 0.75f, "2026/06/25", listOf("共同回報者 (3人以上)", "通聯密集度高", "話術相似度 85%")),
+                    GenealogyNode(3, "0905-112-887", "靜態特徵", 0.88f, "2026/06/26", listOf("編輯距離 < 2", "電信商一致")),
+                    GenealogyNode(4, "0988-776-334", "行為共現", 0.65f, "2026/06/24", listOf("共同回報者 (1人)", "通聯密集度中")),
+                    GenealogyNode(5, "0977-221-990", "行為共現", 0.92f, "2026/06/26", listOf("共同回報者 (5人以上)", "話術相似度 92%")),
+                    GenealogyNode(6, "0800-001-001", "靜態特徵", 0.82f, "2026/06/20", listOf("偽冒號碼特徵", "編輯距離 < 3"))
                 )
             )
         } else {
-            // 生產環境：回傳空資料或串接真實 API
-            PhoneGenealogyData(currentRoot, 0f, 0f, "無分群資料", emptyList())
+            PhoneGenealogyData(currentRoot, "無標籤資料", emptyList())
         }
     }
 
@@ -100,8 +95,7 @@ fun PhoneGenealogyScreen(phoneNumber: String, onBack: () -> Unit) {
                 GenealogyContent(
                     innerPadding = innerPadding,
                     data = genealogyData,
-                    onNodeClick = { selectedNode = it },
-                    onInfoClick = { showMetricInfo = it }
+                    onNodeClick = { selectedNode = it }
                 )
             }
         }
@@ -109,24 +103,16 @@ fun PhoneGenealogyScreen(phoneNumber: String, onBack: () -> Unit) {
         if (selectedNode != null) {
             NodeDetailDialog(node = selectedNode!!, onDismiss = { selectedNode = null }, onSwitchRoot = { currentRoot = selectedNode!!.phoneNumber; selectedNode = null })
         }
-
-        if (showMetricInfo != null) {
-            MetricInfoDialog(type = showMetricInfo!!, onDismiss = { showMetricInfo = null })
-        }
     }
 }
 
 @Composable
-private fun GenealogyContent(innerPadding: PaddingValues, data: PhoneGenealogyData, onNodeClick: (GenealogyNode) -> Unit, onInfoClick: (String) -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(innerPadding).verticalScroll(rememberScrollState()).padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+private fun GenealogyContent(innerPadding: PaddingValues, data: PhoneGenealogyData, onNodeClick: (GenealogyNode) -> Unit) {
+    Column(modifier = Modifier.fillMaxSize().padding(innerPadding).verticalScroll(rememberScrollState()).padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         GenealogyGraph(data, onNodeClick)
         Spacer(modifier = Modifier.height(40.dp))
-        Text("號碼風險分析數據", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(20.dp))
-        GenealogyMetricsSection(data, onInfoClick)
-        Spacer(modifier = Modifier.height(40.dp))
-        InstructionCard(data.clusterId)
-        Spacer(modifier = Modifier.height(40.dp))
+        Text("號碼所屬標籤：${data.tagId}", color = Color(0xFF00E5FF), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+        Spacer(modifier = Modifier.height(60.dp))
     }
 }
 
@@ -202,12 +188,16 @@ fun GenealogyGraph(data: PhoneGenealogyData, onNodeClick: (GenealogyNode) -> Uni
 fun NodeDetailDialog(node: GenealogyNode, onDismiss: () -> Unit, onSwitchRoot: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss, containerColor = Color(0xFF0D1520),
-        title = { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Phone, contentDescription = null, tint = Color(0xFF448AFF)); Spacer(modifier = Modifier.width(12.dp)); Text("號碼詳細分析", color = Color.White) } },
+        title = { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Hub, contentDescription = null, tint = Color(0xFF448AFF)); Spacer(modifier = Modifier.width(12.dp)); Text("號碼關聯分析", color = Color.White) } },
         text = {
             Column {
                 Text("標籤號碼：${node.phoneNumber}", color = Color.White, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp)); Text("最後活躍：${node.lastActive}", color = Color(0xFF00E5FF), fontSize = 12.sp)
-                Spacer(modifier = Modifier.height(16.dp)); Text(node.detailReason, color = Color.LightGray, fontSize = 14.sp, lineHeight = 20.sp)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("關聯原因：", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                node.reasons.forEach { reason ->
+                    Text("• $reason", color = Color.LightGray, fontSize = 13.sp, modifier = Modifier.padding(vertical = 2.dp))
+                }
                 Spacer(modifier = Modifier.height(16.dp)); LinearProgressIndicator(progress = { node.connectionStrength }, modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape), color = Color(0xFF2979FF), trackColor = Color.White.copy(alpha = 0.1f))
                 Text("關聯強度：${(node.connectionStrength * 100).toInt()}%", color = Color.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
             }
@@ -218,77 +208,11 @@ fun NodeDetailDialog(node: GenealogyNode, onDismiss: () -> Unit, onSwitchRoot: (
 }
 
 @Composable
-private fun MetricInfoDialog(type: String, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss, containerColor = Color(0xFF0D1520),
-        title = { Text(if(type == "risk") "規則式風險評分" else "號碼關聯分數", color = Color.White) },
-        text = { Text(if(type == "risk") "此評分代表號碼本身的惡意特徵強度。包含是否為人頭、有無黑名單紀錄、以及發話行為是否異常。" else "此分數代表該號碼與現有詐騙集團核心網絡的貼合程度。越高代表其在集團分工中的位置越明確。", color = Color.LightGray) },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("了解", color = Color(0xFF448AFF)) } }
-    )
-}
-
-@Composable
 private fun EmptyGenealogyState(modifier: Modifier) {
     Column(modifier = modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Icon(Icons.Default.CloudOff, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(64.dp))
         Spacer(modifier = Modifier.height(16.dp))
         Text("目前無關聯資料", color = Color.Gray, fontSize = 16.sp)
-    }
-}
-
-@Composable
-private fun InstructionCard(clusterId: String) {
-    Surface(color = Color(0xFF121A21).copy(alpha = 0.8f), shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2979FF).copy(alpha = 0.2f))) {
-        Row(modifier = Modifier.padding(16.dp)) {
-            Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF00E5FF), modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(12.dp))
-            Text("提示：系統偵測到該號碼與 $clusterId 集團具備極高關聯。所有節點已進行脫敏處理，以符合資安規範。", color = Color.LightGray, fontSize = 13.sp, lineHeight = 22.sp)
-        }
-    }
-}
-
-@Composable
-fun GenealogyMetricsSection(data: PhoneGenealogyData, onInfoClick: (String) -> Unit) {
-    val riskAnim = remember { Animatable(0f) }
-    val associationAnim = remember { Animatable(0f) }
-    LaunchedEffect(data) {
-        riskAnim.animateTo(data.riskScore, tween(1500, easing = FastOutSlowInEasing))
-        associationAnim.animateTo(data.associationScore, tween(1500, easing = FastOutSlowInEasing))
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            MetricCardWithInfo(Modifier.weight(1f), "規則式風險評分", "${(riskAnim.value * 100).toInt()}%", Color(0xFFFF1744), Icons.Default.SettingsSuggest) { onInfoClick("risk") }
-            Spacer(modifier = Modifier.width(12.dp))
-            MetricCardWithInfo(Modifier.weight(1f), "號碼關聯分數", "${(associationAnim.value * 100).toInt()}/100", Color(0xFF448AFF), Icons.Default.Hub) { onInfoClick("assoc") }
-        }
-        Surface(modifier = Modifier.fillMaxWidth(), color = Color(0xFF121A21), shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.2f))) {
-            Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(50.dp).background(Color(0xFF00E5FF).copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Default.Hub, contentDescription = null, tint = Color(0xFF00E5FF), modifier = Modifier.size(24.dp)) }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text("所屬詐騙集團類型", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text(data.clusterId, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, style = TextStyle(letterSpacing = 0.5.sp, shadow = Shadow(Color(0xFF00E5FF), blurRadius = 10f)))
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                Text("核心成員", color = Color(0xFF00E5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.background(Color(0xFF00E5FF).copy(alpha = 0.15f), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp))
-            }
-        }
-    }
-}
-
-@Composable
-fun MetricCardWithInfo(modifier: Modifier, title: String, value: String, color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector, onInfo: () -> Unit) {
-    Surface(modifier = modifier.height(125.dp), color = Color(0xFF121A21), shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.2f))) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.Center) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, tint = color.copy(alpha = 0.6f), modifier = Modifier.size(18.dp))
-                IconButton(onClick = onInfo, modifier = Modifier.size(24.dp)) { Icon(Icons.Default.HelpOutline, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp)) }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(value, color = color, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, style = TextStyle(shadow = Shadow(color, blurRadius = 15f)))
-            Text(title, color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        }
     }
 }
 

@@ -99,7 +99,7 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
                     score = 88,
                     title = "高風險威脅 (模擬模式)",
                     reasons = listOf(
-                        "偵測到號碼具備多個詐騙集團特徵",
+                        "偵測到號碼具備多個詐騙標籤特徵",
                         "關聯多組已報案的惡意通訊錄",
                         "行為模式分析結果與 G-9412 分群高度吻合"
                     )
