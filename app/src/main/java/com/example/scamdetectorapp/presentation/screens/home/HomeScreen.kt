@@ -149,7 +149,7 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
             ProtectionFeatureCard(
                 title = if (isProtectionEnabled) "即時防護中" else "防護未啟動",
                 desc = "通話中檢測，敏感操作防護",
-                icon = if (isProtectionEnabled) Icons.Outlined.VerifiedUser else Icons.Outlined.Shield,
+                icon = if (isProtectionEnabled) Icons.Outlined.VerifiedUser else ImageVector.vectorResource(id = R.drawable.security_24dp),
                 isEnabled = isProtectionEnabled,
                 onCheckedChange = { checked ->
                     if (checked) {
