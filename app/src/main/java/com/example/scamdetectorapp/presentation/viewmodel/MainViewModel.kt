@@ -89,6 +89,26 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
         stateFlow.value = ScanUiState.Loading
         
         viewModelScope.launch {
+            // --- 開發者模式：強制攔截所有請求並回傳模擬數據 ---
+            val FORCE_MOCK = true 
+
+            if (FORCE_MOCK) {
+                kotlinx.coroutines.delay(1500) // 模擬掃描動畫時間
+                val mockResult = ScanUiModel(
+                    isSafe = false,
+                    score = 88,
+                    title = "高風險威脅 (模擬模式)",
+                    reasons = listOf(
+                        "偵測到號碼具備多個詐騙標籤特徵",
+                        "關聯多組已報案的惡意通訊錄",
+                        "行為模式分析結果與 G-9412 分群高度吻合"
+                    )
+                )
+                stateFlow.value = ScanUiState.Success(mockResult)
+                android.util.Log.w("MainViewModel", "[MOCK] Bypass API request and returned test data.")
+                return@launch
+            }
+
             val result = repository.scan(mode, input.trim())
             result.fold(
                 onSuccess = { scanResult ->

@@ -28,12 +28,20 @@ object RetrofitClient {
             }
 
             val original = chain.request()
+            
+            // 加入 Debug Log 協助確認 Header 是否成功帶入
+            android.util.Log.d("RetrofitClient", "--> Sending Request to: ${original.url}")
+            android.util.Log.d("RetrofitClient", "Using API_KEY: ${if(apiKey.isEmpty()) "EMPTY!" else "Loaded (Length: ${apiKey.length})"}")
+
             val request = original.newBuilder()
                 .header("x-api-key", apiKey)
                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36")
                 .method(original.method, original.body)
                 .build()
-            chain.proceed(request)
+            
+            val response = chain.proceed(request)
+            android.util.Log.d("RetrofitClient", "<-- Received Response: ${response.code}")
+            response
         }
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)

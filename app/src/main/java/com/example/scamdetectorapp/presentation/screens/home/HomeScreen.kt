@@ -446,6 +446,28 @@ private fun NewsPreviewSection(onClick: () -> Unit) {
     }
 }
 
+@Composable
+private fun PromotionBanner() {
+    val scamPrimary = Color(0xFF2979FF)
+    Card(modifier = Modifier.fillMaxWidth().height(100.dp), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF121A21))) {
+        Box(modifier = Modifier.fillMaxSize().background(scamPrimary.copy(alpha = 0.1f), RoundedCornerShape(8.dp))) {
+            Image(painter = painterResource(R.drawable.shield_banner), contentDescription = null, modifier = Modifier.size(120.dp).align(Alignment.CenterEnd), contentScale = ContentScale.Fit)
+            Row(modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(44.dp).background(scamPrimary.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.Shield, contentDescription = null, tint = scamPrimary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Default.Bolt, contentDescription = null, tint = scamPrimary, modifier = Modifier.size(14.dp))
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("守護不中斷，安全每一步", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("Scam Guard 持續保護您的數位生活", color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp, maxLines = 1)
+                }
+            }
+        }
+    }
+}
+
 private fun handleSpecialPermissions(context: Context) {
     if (!Settings.canDrawOverlays(context)) {
         context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")))
