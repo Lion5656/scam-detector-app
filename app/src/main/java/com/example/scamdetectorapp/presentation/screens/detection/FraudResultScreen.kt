@@ -31,15 +31,19 @@ import com.example.scamdetectorapp.presentation.model.ScanUiModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FraudResultScreen(originalText: String, result: ScanUiModel, onBack: () -> Unit) {
+fun FraudResultScreen(
+    originalText: String,
+    result: ScanUiModel,
+    onBack: () -> Unit,
+    onViewGenealogy: (() -> Unit)? = null
+) {
     val context = LocalContext.current
     var showSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val fraudTypes = listOf(
-        "釣魚簡訊", "假投資", "網路購物", "假買家",
-        "交友詐財", "偽造中獎", "求職陷阱", "假銀行貸款",
-        "騙取金融帳戶", "假廣告", "假冒檢警", "遊戲詐騙"
+        "騷擾", "個資蒐集", "企業假冒",
+        "銀行信貸騷擾", "可疑電話", "未知詐騙"
     )
     var selectedType by remember { mutableStateOf("") }
 
@@ -170,6 +174,30 @@ fun FraudResultScreen(originalText: String, result: ScanUiModel, onBack: () -> U
 
             Spacer(Modifier.height(24.dp))
 
+            // Details Section
+            Text("詳細資訊", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
+            Spacer(Modifier.height(16.dp))
+
+            result.detailMap?.let { details ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = surfaceColor),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        val detailList = details.toList()
+                        detailList.forEachIndexed { index, pair ->
+                            DetailItem(label = pair.first, value = pair.second.toString(), color = textWhite, labelColor = textGrey)
+                            if (index < detailList.size - 1) {
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = textWhite.copy(alpha = 0.05f))
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
             // 分析詳情列表
             Text("分析詳情", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
             Spacer(Modifier.height(16.dp))
@@ -209,11 +237,11 @@ fun FraudResultScreen(originalText: String, result: ScanUiModel, onBack: () -> U
                 }
 
                 Button(
-                    onClick = { if (result.score > 0) showSheet = true else onBack() },
+                    onClick = { if (result.score > 39) showSheet = true else onBack() },
                     modifier = Modifier.weight(1f).height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = statusColor)
                 ) {
-                    Text(if(result.score > 0) "回報詐騙" else "完成", color = Color.White)
+                    Text(if (result.score > 39) "回報詐騙" else "完成", color = Color.White)
                 }
             }
         }
@@ -292,5 +320,16 @@ fun FraudResultScreen(originalText: String, result: ScanUiModel, onBack: () -> U
                 }
             }
         }
+    }
+}
+
+@Composable
+fun DetailItem(label: String, value: String, color: Color, labelColor: Color) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, color = labelColor, fontSize = 14.sp)
+        Text(value, color = color, fontSize = 14.sp, fontWeight = FontWeight.Medium)
     }
 }

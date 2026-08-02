@@ -8,6 +8,7 @@ import com.example.scamdetectorapp.data.remote.RetrofitClient
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.domain.model.ScanResult
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -20,18 +21,6 @@ class AntiFraudRepository(private val context: Context? = null) {
     private val api = RetrofitClient.instance
 
     suspend fun scan(mode: DetectionMode, input: String): Result<ScanResult> = withContext(Dispatchers.IO) {
-        // --- [關鍵修正]：強制攔截所有請求，改為本地模擬輸出 ---
-        val IS_OFFLINE_TEST = true 
-
-        if (IS_OFFLINE_TEST) {
-            delay(1500) // 模擬掃描中的進度感
-            val mockResult = when(mode) {
-                DetectionMode.PHONE -> ScanResult("HIGH", "該號碼關聯多起詐騙案件紀錄", threatType = "冒充官署", suggestion = "請立即掛斷並撥打165求證")
-                else -> ScanResult("HIGH", "偵測到惡意內容特徵 (測試模式)", suggestion = "請勿點擊或輸入個人資訊")
-            }
-            return@withContext Result.success(mockResult)
-        }
-
         try {
             val result = when (mode) {
                 DetectionMode.PHONE -> {

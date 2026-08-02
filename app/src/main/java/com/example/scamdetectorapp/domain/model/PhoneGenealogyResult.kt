@@ -3,7 +3,7 @@ package com.example.scamdetectorapp.domain.model
 /**
  * 號碼族譜分析結果 (Domain Layer)
  */
-data class PhoneGenealogyAnalysis(
+data class PhoneGenealogyResult(
     val rootNumber: String,
     val nodes: List<GenealogyAnalysisNode>
 )

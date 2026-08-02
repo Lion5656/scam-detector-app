@@ -129,7 +129,7 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
             Spacer(modifier = Modifier.height(32.dp))
 
             // 促銷廣告橫幅
-            PromotionBanner()
+            PromotionBannerSection()
 
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -447,7 +447,7 @@ private fun NewsPreviewSection(onClick: () -> Unit) {
 }
 
 @Composable
-private fun PromotionBanner() {
+private fun PromotionBannerSection() {
     val scamPrimary = Color(0xFF2979FF)
     Card(modifier = Modifier.fillMaxWidth().height(100.dp), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF121A21))) {
         Box(modifier = Modifier.fillMaxSize().background(scamPrimary.copy(alpha = 0.1f), RoundedCornerShape(8.dp))) {

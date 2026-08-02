@@ -94,12 +94,6 @@ fun GenericDetectionFlow(
     // 【關鍵修正】使用 TextFieldValue 替代 String，以支援實體鍵盤中文組合輸入
     var localTextValue by remember(mode) { mutableStateOf(TextFieldValue(viewModelInput)) }
 
-    LaunchedEffect(viewModelInput) {
-        if (localTextValue.text != viewModelInput) {
-            localTextValue = TextFieldValue(viewModelInput)
-        }
-    }
-
     // 當分頁切換（mode 改變）或元件銷毀時，確保收起鍵盤
     DisposableEffect(mode) {
         onDispose {
@@ -161,9 +155,12 @@ fun GenericDetectionFlow(
                     desc = desc,
                     placeholder = placeholder,
                     value = localTextValue,
-                    onValueChange = {
-                        localTextValue = it
-                        viewModel.setInput(mode, it.text)
+                    onValueChange = { newValue ->
+                        localTextValue = newValue
+                        // 僅在文字有變動時更新全域狀態，避免 IME 正在組字時被反向同步干擾
+                        if (newValue.text != viewModelInput) {
+                            viewModel.setInput(mode, newValue.text)
+                        }
                     },
                     onScan = { if (localTextValue.text.isNotBlank()) startScan() },
                     keyboardType = when (mode) {
