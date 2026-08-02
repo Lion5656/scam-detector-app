@@ -2,12 +2,12 @@ package com.example.scamdetectorapp.data.repository
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.example.scamdetectorapp.data.model.*
 import com.example.scamdetectorapp.data.remote.RetrofitClient
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.domain.model.ScanResult
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -23,86 +23,92 @@ class AntiFraudRepository(private val context: Context? = null) {
         try {
             val result = when (mode) {
                 DetectionMode.PHONE -> {
-                    val response = api.getData(phoneNumber = input)
+                    val response = api.queryPhoneNum(body = PhoneQueryRequest(phoneNumber = input))
+                    Log.d("AntiFraudRepository", "response: ${response.data}")
                     if (response.success) {
                         val data = response.data
-                        val riskLevel = data?.riskLevel ?: "NODATA"
+                        Log.d("AntiFraudRepository", "Phone data: $data")
+                        var riskLevel: String
+                        if (data?.status == "white"){
+                            riskLevel = "SAFE"
+                        }
+                        else if (data?.status == "black"){
+                            riskLevel = "HIGH"
+                        }
+                        else {
+                            riskLevel = "UNKNOWN"
+                        }
                         ScanResult(
                             riskLevel = riskLevel,
-                            description = data?.description
+                            threatType = data?.phoneType,
+                            suggestion = if(riskLevel == "SAFE") "此號碼目前尚未檢測出風險" else "危險號碼，請不要進行撥打操作",
+                            detailInfo = mutableMapOf<String, Any>().apply {
+                                data?.phoneType?.let { put("電話類型", it) }
+                                data?.firstReportedAt?.let {put("首次回報", it) }
+                                data?.lastReportedAt?.let { put("最後回報", it) }
+                                data?.totalReports?.let {put("回報次數", it.toString())}
+                                data?.ownerName?.let { put("擁有者", it) }
+                            }
                         )
-                    } else throwApiException(response.toString())
+                    } else throw Exception("API 回傳失敗: ${response.version}")
                 }
                 DetectionMode.URL -> {
-                    var urlToCheck = input.trim()
-                    if (!urlToCheck.startsWith("http://") && !urlToCheck.startsWith("https://")) {
-                        urlToCheck = "https://$urlToCheck"
+                    var url = input.trim()
+                    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                        url = "https://$url"
                     }
-                    val response = api.getUrlCheck(url = urlToCheck)
+                    val response = api.analyzeUrl(body = UrlRequest(url = url))
                     if (response.success) {
                         val data = response.data
-                        val riskLevel = data?.riskLevel ?: "NODATA"
                         ScanResult(
-                            riskLevel = riskLevel,
-                            description = data?.description,
-                            threatType = data?.threatType
+                            riskLevel = data?.label,
+                            suggestion = data?.reason,
+                            score = data?.score?.toString()
                         )
-                    } else throwApiException(response.toString())
+                    } else throw Exception("API 回傳失敗: ${response.version}")
                 }
                 DetectionMode.TEXT -> {
-                    val response = api.postAiCheck(body = AiCheckRequest(text = input))
+                    val response = api.analyzeText(body = TextRequest(text = input))
                     if (response.success) {
                         val data = response.data
-                        val riskLevel = data?.riskLevel ?: "NODATA"
                         ScanResult(
-                            riskLevel = riskLevel,
-                            description = data?.description,
-                            suggestion = data?.suggestion
+                            riskLevel = data?.label ?: "SAFE",
+                            suggestion = data?.reason,
+                            score = data?.score?.toString()
                         )
-                    } else throwApiException(response.toString())
+                    } else throw Exception("API 回傳失敗: ${response.version}")
                 }
                 DetectionMode.PRICE -> {
-                    if (context == null || !input.startsWith("uri:")) {
-                        // 如果沒有 Context 或格式不對，走模擬成功流程以便測試 UI
-                        delay(2000)
-                        ScanResult(
-                            riskLevel = "SAFE",
-                            description = "模擬檢測：圖片格式不支援或環境異常",
-                            suggestion = "請檢查相機權限。"
-                        )
-                    } else {
-                        val uri = input.removePrefix("uri:").toUri()
-                        val file = uriToFile(context, uri) ?: throw Exception("無法處理圖片檔案")
-                        
-                        // 轉換為後端可識別的 Multipart 格式
+                    if (context == null) throw Exception("系統環境異常，請重新啟動 App")
+                    if (!input.startsWith("uri:")) throw Exception("圖片路徑無效或未選擇圖片")
+
+                    val uri = input.removePrefix("uri:").toUri()
+                    val file = uriToFile(context, uri) ?: throw Exception("無法讀取圖片檔案，請檢查權限")
+                    
+                    try {
                         val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
                         val body = MultipartBody.Part.createFormData("image", file.name, requestFile)
                         
-                        try {
-                            val response = api.postPriceCheck(body)
-                            if (response.success) {
-                                val data = response.data
-                                ScanResult(
-                                    riskLevel = data?.riskLevel ?: "SAFE",
-                                    description = data?.description ?: "商品分析完成",
-                                    suggestion = data?.suggestion
-                                )
-                            } else {
-                                ScanResult(
-                                    riskLevel = "SAFE",
-                                    description = "API 回傳錯誤，目前以模擬結果呈現 (FastAPI 測試中)",
-                                    suggestion = "請檢查後端日誌。"
-                                )
-                            }
-                        } catch (e: Exception) {
-                            // 網路斷線等異常，回傳模擬結果
-                            delay(1000)
+                        val response = api.analyzePrice(body)
+                        if (response.success) {
+                            val data = response.data
                             ScanResult(
-                                riskLevel = "SAFE",
-                                description = "目前為離線模擬模式 (FastAPI 連線失敗)",
-                                suggestion = "後端位置: ${api.javaClass.simpleName}"
+                                riskLevel = data?.riskLabel,
+                                suggestion = data?.result,
+                                score = data?.riskScore,
+                                detailInfo = mutableMapOf<String, Any>().apply {
+                                    data?.productName?.let { put("商品名稱", it) }
+                                    data?.condition?.let { put("商品狀況", it) }
+                                    data?.listedPrice?.let { put("刊登價格", it) }
+                                    data?.marketPrice?.let { put("市場價格中位數", it) }
+                                    data?.sellerName?.let { put("賣家名稱", it) }
+                                }
                             )
+                        } else {
+                            throw Exception("API 分析失敗: ${response.version}")
                         }
+                    } finally {
+                        file.delete() // 確保暫存檔被刪除
                     }
                 }
             }
@@ -110,10 +116,6 @@ class AntiFraudRepository(private val context: Context? = null) {
         } catch (e: Exception) {
             Result.failure(e)
         }
-    }
-
-    private fun throwApiException(response: String): Nothing {
-        throw Exception("API 回傳失敗: $response")
     }
 
     /**

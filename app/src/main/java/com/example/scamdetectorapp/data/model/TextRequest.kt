@@ -1,5 +1,5 @@
 package com.example.scamdetectorapp.data.model
 
-data class AiCheckRequest(
+data class TextRequest(
     val text: String
 )

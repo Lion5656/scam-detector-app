@@ -1,38 +1,45 @@
 package com.example.scamdetectorapp.data.remote
 
-import com.example.scamdetectorapp.data.model.AiCheckRequest
-import com.example.scamdetectorapp.data.model.AiCheckResult
+import com.example.scamdetectorapp.data.model.TextRequest
 import com.example.scamdetectorapp.data.model.AntiFraudResponse
-import com.example.scamdetectorapp.data.model.FraudReport
+import com.example.scamdetectorapp.data.model.ImageCheckResult
+import com.example.scamdetectorapp.data.model.PhoneQueryRequest
+import com.example.scamdetectorapp.data.model.PhoneQueryResult
+import com.example.scamdetectorapp.data.model.PhoneReportRequest
+import com.example.scamdetectorapp.data.model.PhoneReportResult
+import com.example.scamdetectorapp.data.model.TextCheckResult
 import com.example.scamdetectorapp.data.model.UrlCheckResult
+import com.example.scamdetectorapp.data.model.UrlRequest
 import okhttp3.MultipartBody
 import retrofit2.http.Body
-import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
-import retrofit2.http.Query
 
 interface AntiFraudApi {
-    @GET("api/cellphone")
-    suspend fun getData(
-        @Query("phoneNumber") phoneNumber: String? = null,
-        @Query("riskLevel") riskLevel: String? = null
-    ): AntiFraudResponse<FraudReport>
+    @POST("/api/v1/phones/search")
+    suspend fun queryPhoneNum(
+        @Body body: PhoneQueryRequest
+    ): AntiFraudResponse<PhoneQueryResult>
 
-    @GET("api/url-check")
-    suspend fun getUrlCheck(
-        @Query("url") url: String
+    @POST("/api/v1/phones/report")
+    suspend fun reportPhoneNum(
+        @Body body: PhoneReportRequest
+    ): AntiFraudResponse<PhoneReportResult>
+
+    @POST("/api/v1/url/analyze")
+    suspend fun analyzeUrl(
+        @Body body: UrlRequest
     ): AntiFraudResponse<UrlCheckResult>
 
-    @POST("api/ai-check")
-    suspend fun postAiCheck(
-        @Body body: AiCheckRequest
-    ): AntiFraudResponse<AiCheckResult>
+    @POST("/api/v1/text/analyze")
+    suspend fun analyzeText(
+        @Body body: TextRequest
+    ): AntiFraudResponse<TextCheckResult>
 
     @Multipart
-    @POST("api/price-check")
-    suspend fun postPriceCheck(
+    @POST("/api/v1/price/analyze")
+    suspend fun analyzePrice(
         @Part image: MultipartBody.Part
-    ): AntiFraudResponse<AiCheckResult>
+    ): AntiFraudResponse<ImageCheckResult>
 }

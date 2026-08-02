@@ -1,6 +1,5 @@
 package com.example.scamdetectorapp.presentation.screens.detection
 
-import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,19 +30,17 @@ import com.example.scamdetectorapp.presentation.model.ScanUiModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FraudResultScreen(originalText: String, result: ScanUiModel, onBack: () -> Unit) {
+fun PhoneResultScreen(originalText: String, result: ScanUiModel, onBack: () -> Unit) {
     val context = LocalContext.current
     var showSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val fraudTypes = listOf(
-        "釣魚簡訊", "假投資", "網路購物", "假買家",
-        "交友詐財", "偽造中獎", "求職陷阱", "假銀行貸款",
-        "騙取金融帳戶", "假廣告", "假冒檢警", "遊戲詐騙"
+        "騷擾", "個資蒐集", "企業假冒",
+        "銀行信貸騷擾", "可疑電話", "未知詐騙"
     )
     var selectedType by remember { mutableStateOf("") }
 
-    // 根據分數判定風險等級、顏色與圖示
     val statusData = when {
         result.score > 79 -> Triple("高風險威脅", colorResource(id = R.color.scam_risk_red), Icons.Default.Warning)
         result.score in 40..79 -> Triple("中風險威脅", colorResource(id = R.color.scam_orange), Icons.Default.Warning)
@@ -60,146 +57,116 @@ fun FraudResultScreen(originalText: String, result: ScanUiModel, onBack: () -> U
     val surfaceColor = MaterialTheme.colorScheme.surface
     val backgroundColor = MaterialTheme.colorScheme.background
 
-    // 新增代碼：定義分享功能邏輯
-    // 將檢測結果格式化為文字，並透過系統 Intent 呼叫外部 App (Line, FB, X, IG 等) 進行分享
-    val onShare = {
-        val shareText = buildString {
-            appendLine("【Scam Guard 詐騙檢測報告 v1.0】")
-            appendLine("\n原始內容：")
-            appendLine(originalText)
-            if (result.reasons.isNotEmpty()) {
-                appendLine("\n分析詳情：")
-                result.reasons.forEach { appendLine("• $it") }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        // Top Nav
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = textWhite)
             }
-            appendLine("\n風險指數：${result.score}%")
-            appendLine("\n#防詐騙 #ScamGuard #安全守護")
+            Spacer(Modifier.width(8.dp))
+            Text("電話查詢結果", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
         }
 
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, shareText)
-        }
-        context.startActivity(Intent.createChooser(intent, "分享檢測結果"))
-    }
+        Spacer(Modifier.height(24.dp))
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState())
+        // Main Risk Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = surfaceColor),
+            shape = RoundedCornerShape(24.dp)
         ) {
-            // 頂部導覽列
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = textWhite)
-                }
-                Spacer(Modifier.width(8.dp))
-                Text("檢測結果", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
+                Icon(statusIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(64.dp))
+                Spacer(Modifier.height(16.dp))
+                Text(originalText, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = textWhite)
+                Text(statusText, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = statusColor)
                 
-                Spacer(Modifier.weight(1f))
-                
-                // 新增代碼：右上角分享按鈕
-                IconButton(onClick = onShare) {
-                    Icon(Icons.Default.Share, contentDescription = "分享", tint = textWhite)
+                if (result.score > 0) {
+                    Spacer(Modifier.height(16.dp))
+                    Text("風險指數: ${result.score}%", color = textGrey)
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .background(statusColor.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction = (result.score / 100f).coerceIn(0f, 1f))
+                                .fillMaxHeight()
+                                .background(statusColor, RoundedCornerShape(4.dp))
+                        )
+                    }
                 }
             }
+        }
 
-            Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(24.dp))
 
-            // 指數顯示卡片
+        // Details Section
+        Text("詳細資訊", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
+        Spacer(Modifier.height(16.dp))
+
+        result.detailMap?.let { details ->
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = surfaceColor),
-                shape = RoundedCornerShape(24.dp)
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(statusIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(64.dp))
-                    Spacer(Modifier.height(16.dp))
-                    Text(statusText, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = statusColor)
-                    Spacer(Modifier.height(8.dp))
-
-                    Text(if (result.score > 0) "風險指數" else "", color = textGrey, fontSize = 12.sp)
-                    Spacer(Modifier.height(16.dp))
-
-                    if (result.score >= 0) {
-                        // 新增代碼：自定義連貫進度條
-                        // 使用 Box 堆疊取代 LinearProgressIndicator，解決 Material 3 預設元件的斷裂感問題
-                        val barShape = RoundedCornerShape(4.dp)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(10.dp)
-                                .background(statusColor.copy(alpha = 0.15f), barShape) // 進度條底色
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(fraction = (result.score / 100f).coerceIn(0f, 1f))
-                                    .fillMaxHeight()
-                                    .background(statusColor, barShape) // 實際進度顏色
-                            )
+                Column(modifier = Modifier.padding(16.dp)) {
+                    val detailList = details.toList()
+                    detailList.forEachIndexed { index, pair ->
+                        DetailItem(label = pair.first, value = pair.second.toString(), color = textWhite, labelColor = textGrey)
+                        if (index < detailList.size - 1) {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = textWhite.copy(alpha = 0.05f))
                         }
                     }
-
-                    if (result.score >= 0) {
-                        Text("${result.score}%", color = textWhite, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-                    }
                 }
             }
+        } ?: run {
+            Text("暫無詳細資訊", color = textGrey, fontSize = 14.sp)
+        }
 
-            Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(24.dp))
 
-            // 分析詳情列表
-            Text("分析詳情", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
-            Spacer(Modifier.height(16.dp))
-
-            result.reasons.forEach { reason ->
-                Row(modifier = Modifier.padding(bottom = 12.dp), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Default.Info, contentDescription = null, tint = statusColor, modifier = Modifier.size(20.dp).padding(top = 2.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Text(reason, color = textGrey, fontSize = 15.sp, lineHeight = 22.sp)
-                }
+        // Analysis reasons
+        Text("分析摘要", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
+        Spacer(Modifier.height(12.dp))
+        result.reasons.forEach { reason ->
+            Row(modifier = Modifier.padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = statusColor, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(reason, color = textGrey, fontSize = 14.sp)
             }
+        }
 
-            Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(32.dp))
 
-            // 原始文字內容顯示
-            Text("原始內容", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
-            Spacer(Modifier.height(8.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(surfaceColor, RoundedCornerShape(12.dp))
-                    .padding(16.dp)
+        // 底部操作按鈕
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Button(
+                onClick = onBack,
+                modifier = Modifier.weight(1f).height(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = surfaceColor)
             ) {
-                Text(originalText, color = textGrey, fontSize = 14.sp)
+                Text("再測一次", color = textWhite)
             }
 
-            Spacer(Modifier.height(32.dp))
-
-            // 底部操作按鈕
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Button(
-                    onClick = onBack,
-                    modifier = Modifier.weight(1f).height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = surfaceColor)
-                ) {
-                    Text("再測一次", color = textWhite)
-                }
-
-                Button(
-                    onClick = { if (result.score > 0) showSheet = true else onBack() },
-                    modifier = Modifier.weight(1f).height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = statusColor)
-                ) {
-                    Text(if(result.score > 0) "回報詐騙" else "完成", color = Color.White)
-                }
+            Button(
+                onClick = { if (result.score > 0) showSheet = true else onBack() },
+                modifier = Modifier.weight(1f).height(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = statusColor)
+            ) {
+                Text(if(result.score > 0) "回報詐騙" else "完成", color = Color.White)
             }
         }
 
@@ -277,5 +244,16 @@ fun FraudResultScreen(originalText: String, result: ScanUiModel, onBack: () -> U
                 }
             }
         }
+    }
+}
+
+@Composable
+fun DetailItem(label: String, value: String, color: Color, labelColor: Color) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, color = labelColor, fontSize = 14.sp)
+        Text(value, color = color, fontSize = 14.sp, fontWeight = FontWeight.Medium)
     }
 }

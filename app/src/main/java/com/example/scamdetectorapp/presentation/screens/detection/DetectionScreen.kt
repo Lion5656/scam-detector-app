@@ -1,5 +1,7 @@
 package com.example.scamdetectorapp.presentation.screens.detection
 
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -179,11 +181,20 @@ fun GenericDetectionFlow(
 
         AnimatedVisibility(visible = step == ScreenStep.RESULT, enter = fadeIn(), exit = fadeOut()) {
             if (uiState is ScanUiState.Success) {
-                FraudResultScreen(
-                    originalText = localTextValue.text,
-                    result = (uiState as ScanUiState.Success).result,
-                    onBack = { reset() }
-                )
+                val result = (uiState as ScanUiState.Success).result
+                if (result.mode == DetectionMode.PHONE) {
+                    PhoneResultScreen(
+                        originalText = localTextValue.text,
+                        result = result,
+                        onBack = { reset() }
+                    )
+                } else {
+                    FraudResultScreen(
+                        originalText = localTextValue.text,
+                        result = result,
+                        onBack = { reset() }
+                    )
+                }
             }
         }
 
@@ -374,10 +385,20 @@ fun PriceInputScreen(
     val textGrey = colorResource(R.color.scam_text_grey)
     val surfaceColor = MaterialTheme.colorScheme.surface
 
+
+    val context = LocalContext.current
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        uri?.let { onImageSelected(it.toString()) }
+        if (uri != null){
+            val contentType = context.contentResolver.getType(uri)
+            val isSupported = contentType in listOf("image/jepg", "image/png", "image/webp")
+            if (isSupported){
+                onImageSelected(uri.toString())
+            } else {
+                Toast.makeText(context, "不支援的檔案格式，請選擇 JPG, PNG 或 WEBP", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     // Camera launcher placeholder - in real app would need a File provider
@@ -488,7 +509,7 @@ fun PriceInputScreen(
                         contentScale = ContentScale.Fit, // 使用 Fit 以免裁剪到文字內容
                         onState = { state ->
                             if (state is coil.compose.AsyncImagePainter.State.Error) {
-                                android.util.Log.e("Coil", "Load failed for URI: $imageUri", state.result.throwable)
+                                Log.e("Coil", "Load failed for URI: $imageUri", state.result.throwable)
                             }
                         }
                     )

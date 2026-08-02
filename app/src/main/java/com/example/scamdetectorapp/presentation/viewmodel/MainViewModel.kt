@@ -92,7 +92,7 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
             val result = repository.scan(mode, input.trim())
             result.fold(
                 onSuccess = { scanResult ->
-                    val uiModel = mapToUiModel(scanResult)
+                    val uiModel = mapToUiModel(scanResult, mode)
                     stateFlow.value = ScanUiState.Success(uiModel)
                     if (mode == DetectionMode.PRICE) {
                         Toast.makeText(getApplication(), "商品分析傳送成功", Toast.LENGTH_SHORT).show()
@@ -111,10 +111,13 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
         }
     }
 
-    private fun mapToUiModel(result: ScanResult): ScanUiModel {
+    private fun mapToUiModel(result: ScanResult, mode: DetectionMode): ScanUiModel {
         val rLevel = result.riskLevel
+        val reasons = mutableListOf<String>()
+        val title: String
 
-        val score = when (rLevel?.uppercase()) {
+        // 基本分數判定 (後續可根據 mode 細修)
+        var score = when (rLevel?.uppercase()) {
             "HIGH" -> 85
             "MEDIUM" -> 60
             "LOW" -> 20
@@ -123,8 +126,13 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
             else -> 0
         }
 
-        val reasons = mutableListOf<String>()
-        val title: String
+        // 針對電話模式的特殊分數邏輯：如果有回報次數，動態調整分數
+        if (mode == DetectionMode.PHONE) {
+            val reports = result.detailInfo?.get("回報次數")?.toString()?.toIntOrNull() ?: 0
+            if (reports > 0) {
+                score = (score + (reports * 5)).coerceAtMost(100)
+            }
+        }
 
         when (rLevel?.uppercase()) {
             "HIGH", "MEDIUM", "LOW" -> {
@@ -134,16 +142,19 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
                     else -> "低風險威脅"
                 }
                 reasons.add("風險等級: $rLevel")
-                result.description?.takeIf { it.isNotEmpty() }?.let { reasons.add(it) }
-                result.threatType?.takeIf { it.isNotEmpty() }?.let { reasons.add("威脅類型: $it") }
-                result.suggestion?.takeIf { it.isNotEmpty() }?.let { reasons.add("建議: $it") }
+                result.threatType?.takeIf { it.isNotEmpty() }?.let { reasons.add("類型: $it") }
+                result.suggestion?.takeIf { it.isNotEmpty() }?.let { reasons.add(it) }
             }
             "SAFE" -> {
                 title = "安全內容"
-                reasons.add("無詐騙特徵")
-                reasons.add("正規網域/號碼/內容")
+                if (mode == DetectionMode.PHONE) {
+                    reasons.add("此號碼目前暫無回報紀錄")
+                } else {
+                    reasons.add("無詐騙特徵")
+                    reasons.add("正規網域/號碼/內容")
+                }
             }
-            else -> { // Catches NODATA and any other case
+            else -> {
                 title = "查無資料"
                 reasons.add("資料庫暫無此紀錄")
             }
@@ -153,7 +164,9 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
             isSafe = rLevel == "SAFE" || rLevel == "NODATA",
             score = score,
             title = title,
-            reasons = reasons
+            reasons = reasons,
+            mode = mode,
+            detailMap = result.detailInfo
         )
     }
 
