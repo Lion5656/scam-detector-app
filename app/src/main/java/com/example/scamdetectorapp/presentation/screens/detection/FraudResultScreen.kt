@@ -31,7 +31,12 @@ import com.example.scamdetectorapp.presentation.model.ScanUiModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FraudResultScreen(originalText: String, result: ScanUiModel, onBack: () -> Unit) {
+fun FraudResultScreen(
+    originalText: String, 
+    result: ScanUiModel, 
+    onBack: () -> Unit,
+    onViewGenealogy: (() -> Unit)? = null
+) {
     val context = LocalContext.current
     var showSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -150,6 +155,21 @@ fun FraudResultScreen(originalText: String, result: ScanUiModel, onBack: () -> U
                     if (result.score >= 0) {
                         Text("${result.score}%", color = textWhite, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
                     }
+                }
+            }
+
+            // 新增：查看族譜按鈕 (僅在有提供 callback 時顯示)
+            if (onViewGenealogy != null) {
+                Spacer(Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = onViewGenealogy,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFF2979FF)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Hub, contentDescription = null, tint = Color(0xFF448AFF), modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("查看號碼關聯族譜", color = Color(0xFF448AFF), fontWeight = FontWeight.Bold)
                 }
             }
 

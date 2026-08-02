@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.Message
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.DataThresholding
@@ -113,7 +114,7 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
                     )
                 }
 
-                // 右上角動態小機器人
+                // 右上角動態小機器人 (智慧互動特效系統)
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -149,34 +150,23 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
             ProtectionFeatureCard(
                 title = if (isProtectionEnabled) "即時防護中" else "防護未啟動",
                 desc = "通話中檢測，敏感操作防護",
-                icon = if (isProtectionEnabled) Icons.Outlined.VerifiedUser else Icons.Outlined.Shield,
+                icon = if (isProtectionEnabled) Icons.Outlined.VerifiedUser else ImageVector.vectorResource(id = R.drawable.security_24dp),
                 isEnabled = isProtectionEnabled,
                 onCheckedChange = { checked ->
                     if (checked) {
                         val permissions = mutableListOf(Manifest.permission.READ_PHONE_STATE)
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            permissions.add(Manifest.permission.ANSWER_PHONE_CALLS)
-                        }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-                        }
-                        val needsBasePermissions = permissions.any {
-                            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
-                        }
-                        if (needsBasePermissions) {
-                            permissionsLauncher.launch(permissions.toTypedArray())
-                        } else {
-                            handleSpecialPermissions(context)
-                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) permissions.add(Manifest.permission.ANSWER_PHONE_CALLS)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+                        
+                        val needsBasePermissions = permissions.any { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
+                        if (needsBasePermissions) permissionsLauncher.launch(permissions.toTypedArray()) else handleSpecialPermissions(context)
                     }
                     isProtectionEnabled = checked
                     settingsManager.isProtectionEnabled = checked
                     val intent = Intent(context, MonitorService::class.java)
                     if (checked) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)
-                    } else {
-                        context.stopService(intent)
-                    }
+                    } else { context.stopService(intent) }
                 }
             )
 
@@ -199,7 +189,7 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
             FeatureCard("簡訊檢測", "分析可疑簡訊內容", Icons.AutoMirrored.Outlined.Message, Color(0xFFD500F9)) { onNavigateTo("簡訊") }
             Spacer(modifier = Modifier.height(12.dp))
-            FeatureCard("購物檢測", "貼上圖片，檢測商品價格是否正常", ImageVector.vectorResource(id = R.drawable.shopping_cart_24dp), Color(0xFFFFD600)) { onNavigateTo("購物檢測") }
+            FeatureCard("FB一頁式購物檢測", "貼上圖片，檢測商品價格是否正常", ImageVector.vectorResource(id = R.drawable.shopping_cart_24dp), Color(0xFF448AFF)) { onNavigateTo("購物檢測") }
 
             Spacer(modifier = Modifier.height(40.dp))
 
@@ -215,37 +205,16 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
 fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
     val coroutineScope = rememberCoroutineScope()
     val infiniteTransition = rememberInfiniteTransition(label = "robot")
-    
-    // --- 1. 基礎狀態 ---
     var isCharging by remember { mutableStateOf(false) }
     var holographicText by remember { mutableStateOf("") }
     val shockwaveScale = remember { Animatable(0f) }
     val shockwaveAlpha = remember { Animatable(0f) }
 
-    // --- 2. 基礎動畫 ---
-    val floatAnim by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 10.dp.value,
-        animationSpec = infiniteRepeatable(tween(2500, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "float"
-    )
-    val eyesGlow by infiniteTransition.animateFloat(
-        initialValue = 0.4f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "glow"
-    )
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(4000, easing = LinearEasing)), label = "rotate"
-    )
+    val floatAnim by infiniteTransition.animateFloat(0f, 10.dp.value, infiniteRepeatable(tween(2500, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "float")
+    val eyesGlow by infiniteTransition.animateFloat(0.4f, 1f, infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "glow")
+    val rotation by infiniteTransition.animateFloat(0f, 360f, infiniteRepeatable(tween(4000, easing = LinearEasing)), label = "rotate")
+    val scanLinePos by infiniteTransition.animateFloat(0f, 1f, infiniteRepeatable(keyframes { durationMillis = 4000; 0f at 0; 0f at 2000; 1f at 3000; 1f at 4000 }), label = "scan")
 
-    // --- 3. 數據掃描線動畫 ---
-    val scanLinePos by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = keyframes { durationMillis = 4000; 0f at 0; 0f at 2000; 1f at 3000; 1f at 4000 },
-            repeatMode = RepeatMode.Restart
-        ), label = "scan"
-    )
-
-    // --- 4. 隨機全息提示邏輯 ---
     LaunchedEffect(Unit) {
         val messages = listOf("SCANNING...", "SECURED", "STAY ALERT", "AI ACTIVE", "THREAT 0%")
         while (true) {
@@ -263,14 +232,12 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
                 if (!isCharging) {
                     isCharging = true
                     coroutineScope.launch {
-                        // 點擊特效：能量波
                         launch {
                             shockwaveScale.snapTo(0f)
                             shockwaveAlpha.snapTo(0.6f)
                             launch { shockwaveScale.animateTo(2f, tween(500, easing = LinearOutSlowInEasing)) }
                             launch { shockwaveAlpha.animateTo(0f, tween(500)) }
                         }
-                        // 充能過場延遲
                         delay(600)
                         onNavigate()
                         isCharging = false
@@ -279,81 +246,22 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
             },
         contentAlignment = Alignment.Center
     ) {
-        // --- 特效層：能量波 ---
         Canvas(modifier = Modifier.fillMaxSize()) {
-            drawCircle(
-                color = Color(0xFF00E5FF),
-                radius = (size.minDimension / 2) * shockwaveScale.value,
-                alpha = shockwaveAlpha.value,
-                style = Stroke(width = 2.dp.toPx())
-            )
+            drawCircle(color = Color(0xFF00E5FF), radius = (size.minDimension / 2) * shockwaveScale.value, alpha = shockwaveAlpha.value, style = Stroke(width = 2.dp.toPx()))
         }
-
-        // --- 特效層：全息提示 ---
         if (holographicText.isNotEmpty()) {
-            Text(
-                text = holographicText,
-                modifier = Modifier.offset(y = (-45).dp),
-                color = Color(0xFF448AFF).copy(alpha = 0.8f),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                style = TextStyle(shadow = Shadow(Color(0xFF2979FF), blurRadius = 8f))
-            )
+            Text(text = holographicText, modifier = Modifier.offset(y = (-45).dp), color = Color(0xFF448AFF).copy(alpha = 0.8f), fontSize = 10.sp, fontWeight = FontWeight.Bold, style = TextStyle(shadow = Shadow(Color(0xFF2979FF), blurRadius = 8f)))
         }
-
-        // --- 核心層：掃描環 ---
         Canvas(modifier = Modifier.size(70.dp).graphicsLayer { rotationZ = rotation }) {
-            drawCircle(
-                brush = Brush.sweepGradient(listOf(Color.Transparent, Color(0xFF2979FF).copy(alpha = 0.4f), Color.Transparent)),
-                style = Stroke(width = 2.dp.toPx())
-            )
+            drawCircle(brush = Brush.sweepGradient(listOf(Color.Transparent, Color(0xFF2979FF).copy(alpha = 0.4f), Color.Transparent)), style = Stroke(width = 2.dp.toPx()))
         }
-
-        // --- 核心層：機器人主體 ---
-        Surface(
-            modifier = Modifier.size(54.dp),
-            color = Color(0xFF0D1520),
-            shape = RoundedCornerShape(16.dp),
-            border = androidx.compose.foundation.BorderStroke(
-                width = if (isCharging) 2.dp else 1.5.dp,
-                color = if (isCharging) Color.White else Color(0xFF2979FF).copy(alpha = 0.7f)
-            )
-        ) {
+        Surface(modifier = Modifier.size(54.dp), color = Color(0xFF0D1520), shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(if (isCharging) 2.dp else 1.5.dp, if (isCharging) Color.White else Color(0xFF2979FF).copy(alpha = 0.7f))) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // 數據掃描雷射
-                if (scanLinePos > 0f && scanLinePos < 1f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .offset(y = (54 * scanLinePos).dp)
-                            .background(Brush.horizontalGradient(listOf(Color.Transparent, Color(0xFFFF1744).copy(alpha = 0.5f), Color.Transparent)))
-                    )
-                }
-
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    // 電子眼睛 (充能時變色)
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        repeat(2) {
-                            Box(
-                                modifier = Modifier
-                                    .size(12.dp, 5.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isCharging) Color.White else Color(0xFF00E5FF).copy(alpha = eyesGlow))
-                            )
-                        }
-                    }
+                // 移除數據掃描雷射 (雷射光線已取消)
+                Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { repeat(2) { Box(modifier = Modifier.size(12.dp, 5.dp).clip(CircleShape).background(if (isCharging) Color.White else Color(0xFF00E5FF).copy(alpha = eyesGlow))) } }
                     Spacer(modifier = Modifier.height(12.dp))
-                    // 下方數據條
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp, 2.dp)
-                            .background(Color(0xFF2979FF).copy(alpha = 0.3f))
-                    )
+                    Box(modifier = Modifier.size(24.dp, 2.dp).background(Color(0xFF2979FF).copy(alpha = 0.3f)))
                 }
             }
         }
@@ -419,8 +327,8 @@ private fun NewsPreviewSection(onClick: () -> Unit) {
     val previewNews = NewsRepository.getPreviewNews()
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("防詐資訊專區", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            TextButton(onClick = onClick) { Text("查看更多", color = Color(0xFF448AFF), fontSize = 14.sp) }
+            Text("全球詐騙情資", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
+            TextButton(onClick = onClick) { Text("進入情報站", color = Color(0xFF448AFF), fontSize = 14.sp) }
         }
         previewNews.forEachIndexed { index, news ->
             if (index > 0) Spacer(modifier = Modifier.height(10.dp))
@@ -435,11 +343,33 @@ private fun NewsPreviewSection(onClick: () -> Unit) {
                     Box(modifier = Modifier.size(40.dp).background(Color(0xFF2979FF).copy(alpha = 0.1f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
                         Icon(if (news.type == NewsType.TREND) Icons.Default.DataThresholding else Icons.Default.Newspaper, contentDescription = null, tint = Color(0xFF2979FF), modifier = Modifier.size(24.dp))
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(news.title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(news.summary, fontSize = 13.sp, color = Color.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PromotionBanner() {
+    val scamPrimary = Color(0xFF2979FF)
+    Card(modifier = Modifier.fillMaxWidth().height(100.dp), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF121A21))) {
+        Box(modifier = Modifier.fillMaxSize().background(scamPrimary.copy(alpha = 0.1f), RoundedCornerShape(8.dp))) {
+            Image(painter = painterResource(R.drawable.shield_banner), contentDescription = null, modifier = Modifier.size(120.dp).align(Alignment.CenterEnd), contentScale = ContentScale.Fit)
+            Row(modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(44.dp).background(scamPrimary.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.Shield, contentDescription = null, tint = scamPrimary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Default.Bolt, contentDescription = null, tint = scamPrimary, modifier = Modifier.size(14.dp))
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("守護不中斷，安全每一步", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("Scam Guard 持續保護您的數位生活", color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp, maxLines = 1)
                 }
             }
         }

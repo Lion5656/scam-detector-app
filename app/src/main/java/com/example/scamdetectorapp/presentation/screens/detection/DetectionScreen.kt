@@ -69,6 +69,7 @@ fun GenericDetectionFlow(
     placeholder: String,
     desc: String,
     isMultiLine: Boolean = false,
+    onNavigateToGenealogy: ((String) -> Unit)? = null,
     viewModel: MainViewModel = viewModel(factory = MainViewModel.provideFactory(LocalContext.current.applicationContext as android.app.Application))
 ) {
     val stateFlow = viewModel.getState(mode)
@@ -182,7 +183,10 @@ fun GenericDetectionFlow(
                 FraudResultScreen(
                     originalText = localTextValue.text,
                     result = (uiState as ScanUiState.Success).result,
-                    onBack = { reset() }
+                    onBack = { reset() },
+                    onViewGenealogy = if (mode == DetectionMode.PHONE) {
+                        { onNavigateToGenealogy?.invoke(localTextValue.text) }
+                    } else null
                 )
             }
         }
