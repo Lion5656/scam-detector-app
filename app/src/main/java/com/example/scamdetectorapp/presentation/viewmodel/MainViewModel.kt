@@ -84,6 +84,17 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
         getMutableState(mode).value = ScanUiState.Idle
     }
 
+    /**
+     * 重置所有檢測模式的狀態與輸入內容。
+     * 通常用於從首頁重新發起檢測流程時，確保所有分頁都回到初始輸入狀態。
+     */
+    fun resetAllStates() {
+        listOf(DetectionMode.URL, DetectionMode.PHONE, DetectionMode.TEXT, DetectionMode.PRICE).forEach { mode ->
+            getMutableState(mode).value = ScanUiState.Idle
+            setInput(mode, "")
+        }
+    }
+
     fun scan(mode: DetectionMode, input: String) {
         val stateFlow = getMutableState(mode)
         stateFlow.value = ScanUiState.Loading

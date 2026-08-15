@@ -189,13 +189,7 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            FeatureCard("網址檢測", "檢查釣魚網站與惡意連結", Icons.Outlined.Public, Color(0xFF2979FF)) { onNavigateTo("網址") }
-            Spacer(modifier = Modifier.height(12.dp))
-            FeatureCard("電話檢測", "辨識騷擾與詐騙來電", Icons.Outlined.Phone, Color(0xFF00E5FF)) { onNavigateTo("電話") }
-            Spacer(modifier = Modifier.height(12.dp))
-            FeatureCard("簡訊檢測", "分析可疑簡訊內容", Icons.AutoMirrored.Outlined.Message, Color(0xFFD500F9)) { onNavigateTo("簡訊") }
-            Spacer(modifier = Modifier.height(12.dp))
-            FeatureCard("購物檢測", "貼上圖片，檢測商品價格是否正常", ImageVector.vectorResource(id = R.drawable.shopping_cart_24dp), Color(0xFFFFD600)) { onNavigateTo("購物檢測") }
+            StartDetectionCard { onNavigateTo("購物檢測") }
 
             Spacer(modifier = Modifier.height(40.dp))
 
@@ -366,6 +360,114 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
 }
 
 @Composable
+private fun StartDetectionCard(onClick: () -> Unit) {
+    val infiniteTransition = rememberInfiniteTransition(label = "card_scan")
+    
+    // 掃描線位移偏量
+    val scanProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "scan_progress"
+    )
+
+    val gradientBrush = Brush.linearGradient(
+        colors = listOf(Color(0xFF2962FF), Color(0xFF00D1FF)),
+        start = Offset(0f, 0f),
+        end = Offset.Infinite
+    )
+
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp),
+        shape = RoundedCornerShape(28.dp),
+        color = Color.Transparent
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(gradientBrush)
+        ) {
+            // 背景裝飾圓圈
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.08f),
+                    radius = size.width / 2.5f,
+                    center = Offset(size.width * 0.9f, size.height * 0.1f)
+                )
+            }
+
+            // 大範圍掃描光束特效 (從左上到右下)
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val width = size.width
+                val height = size.height
+                
+                // 擴大位移範圍使大面積光束
+                val progress = scanProgress * 2.5f - 0.75f
+                val xPos = width * progress
+                val yPos = height * progress
+                
+                val scanBrush = Brush.linearGradient(
+                    0.2f to Color.Transparent,
+                    0.5f to Color.White.copy(alpha = 0.15f),
+                    0.8f to Color.Transparent,
+                    start = Offset(xPos - 400f, yPos - 400f),
+                    end = Offset(xPos + 400f, yPos + 400f)
+                )
+                
+                drawRect(
+                    brush = scanBrush,
+                    size = size
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Text(
+                    text = "開始檢測",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "一鍵分析風險，點擊立即開始",
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.9f),
+                    lineHeight = 20.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ProtectionFeatureCard(title: String, desc: String, icon: ImageVector, isEnabled: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -387,28 +489,6 @@ private fun ProtectionFeatureCard(title: String, desc: String, icon: ImageVector
     }
 }
 
-@Composable
-private fun FeatureCard(title: String, desc: String, icon: ImageVector, color: Color, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        color = Color(0xFF121A21),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.1f))
-    ) {
-        Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(48.dp).background(color.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, tint = color)
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Text(desc, fontSize = 12.sp, color = Color.Gray)
-            }
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.DarkGray)
-        }
-    }
-}
 
 @Composable
 private fun NewsPreviewSection(onClick: () -> Unit) {

@@ -1,6 +1,7 @@
 package com.example.scamdetectorapp.presentation.components
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -17,7 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -52,13 +54,16 @@ fun RiskScoreDashboard(
     maxValue: Int = 100,
     gaugeSize: Dp = 180.dp,
     strokeWidth: Dp = 14.dp,
-    useGradient: Boolean = true
+    useGradient: Boolean = true,
 ) {
-    val animatedScore by animateFloatAsState(
-        targetValue = score.toFloat().coerceIn(0f, maxValue.toFloat()),
-        animationSpec = tween(800),
-        label = "riskScore"
-    )
+    val animatedScore = remember { Animatable(0f) }
+
+    LaunchedEffect(score) {
+        animatedScore.animateTo(
+            targetValue = score.toFloat().coerceIn(0f, maxValue.toFloat()),
+            animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing)
+        )
+    }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -86,7 +91,7 @@ fun RiskScoreDashboard(
                     style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
                 )
 
-                val progressSweep = sweepAngle * (animatedScore / maxValue.toFloat()).coerceIn(0f, 1f)
+                val progressSweep = sweepAngle * (animatedScore.value / maxValue.toFloat()).coerceIn(0f, 1f)
                 if (progressSweep > 0f) {
                     val brush = if (useGradient) {
                         val centerX = topLeft.x + diameter / 2f
@@ -124,7 +129,7 @@ fun RiskScoreDashboard(
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "${animatedScore.roundToInt()}",
+                    text = animatedScore.value.roundToInt().toString(),
                     fontSize = 44.sp,
                     fontWeight = FontWeight.Bold,
                     color = color
@@ -154,8 +159,8 @@ fun RiskScoreDashboard(
 
 /** 將顏色與白色混合，產生同色相的較淺色調，用於量表的漸層起點。 */
 private fun Color.lighten(fraction: Float): Color = Color(
-    red = red + (1f - red) * fraction,
-    green = green + (1f - green) * fraction,
-    blue = blue + (1f - blue) * fraction,
+    red = red + ((1f - red) * fraction),
+    green = green + ((1f - green) * fraction),
+    blue = blue + ((1f - blue) * fraction),
     alpha = alpha
 )
