@@ -61,8 +61,10 @@ fun DashboardScreen() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 16.dp)
         ) {
+            // 頂部間距：避開系統欄並與其他頁面風格統一
+            Spacer(modifier = Modifier.height(60.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)

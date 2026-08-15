@@ -37,10 +37,11 @@ fun NewsScreen(onBack: () -> Unit) {
     val newsList = NewsRepository.newsList
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = 16.dp)
+        modifier = Modifier.fillMaxSize()
     ) {
+        // 頂部間距：避開系統欄並留出更多空間
+        Spacer(modifier = Modifier.height(80.dp))
+
         // --- 頂部標題欄 ---
         Row(
             modifier = Modifier
@@ -57,7 +58,7 @@ fun NewsScreen(onBack: () -> Unit) {
         // --- 滾動列表 ---
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 140.dp), // 增加底部邊距
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(newsList) { news ->

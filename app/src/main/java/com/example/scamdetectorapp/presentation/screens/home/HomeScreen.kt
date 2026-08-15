@@ -91,9 +91,12 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp),
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // 在最上方增加大範圍邊距，讓內容初始位置下移，營造內容從導覽列下方冒出來的感覺
+            Spacer(modifier = Modifier.height(60.dp))
+
             // --- 頂部區域與動態機器人 ---
             Box(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.align(Alignment.CenterStart)) {
@@ -191,12 +194,15 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
 
             StartDetectionCard { onNavigateTo("購物檢測") }
 
+
             Spacer(modifier = Modifier.height(40.dp))
 
             // --- 防詐新聞預覽 ---
             NewsPreviewSection(onClick = { onNavigateTo("新聞") })
             
-            Spacer(modifier = Modifier.height(24.dp))
+            // 底部留白 Spacer：確保懸浮導覽列不會遮擋最後一項內容
+            // 增加至 140.dp 以確保最底部的卡片能完全滑動至懸浮導覽列之上
+            Spacer(modifier = Modifier.height(140.dp))
         }
     }
 }
@@ -516,28 +522,6 @@ private fun NewsPreviewSection(onClick: () -> Unit) {
                         Text(news.title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(news.summary, fontSize = 13.sp, color = Color.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PromotionBannerSection() {
-    val scamPrimary = Color(0xFF2979FF)
-    Card(modifier = Modifier.fillMaxWidth().height(100.dp), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF121A21))) {
-        Box(modifier = Modifier.fillMaxSize().background(scamPrimary.copy(alpha = 0.1f), RoundedCornerShape(8.dp))) {
-            Image(painter = painterResource(R.drawable.shield_banner), contentDescription = null, modifier = Modifier.size(120.dp).align(Alignment.CenterEnd), contentScale = ContentScale.Fit)
-            Row(modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(44.dp).background(scamPrimary.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.Shield, contentDescription = null, tint = scamPrimary, modifier = Modifier.size(28.dp))
-                    Icon(Icons.Default.Bolt, contentDescription = null, tint = scamPrimary, modifier = Modifier.size(14.dp))
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("守護不中斷，安全每一步", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text("Scam Guard 持續保護您的數位生活", color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp, maxLines = 1)
                 }
             }
         }

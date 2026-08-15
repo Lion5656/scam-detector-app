@@ -62,6 +62,9 @@ fun PriceResultScreen(
             .padding(horizontal = 24.dp)
             .verticalScroll(rememberScrollState())
     ) {
+        // 頂部間距：避開系統欄
+        Spacer(modifier = Modifier.height(60.dp))
+
         // 頂部導覽列
         Row(
             modifier = Modifier
@@ -198,7 +201,8 @@ fun PriceResultScreen(
             Text("再次檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
         }
 
-        Spacer(Modifier.height(32.dp))
+        // 底部留白，避免被導覽列遮擋
+        Spacer(modifier = Modifier.height(140.dp))
     }
 }
 

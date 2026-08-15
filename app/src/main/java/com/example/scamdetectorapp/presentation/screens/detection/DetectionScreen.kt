@@ -8,6 +8,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -77,13 +78,13 @@ fun GenericDetectionFlow(
     placeholder: String,
     desc: String,
     isMultiLine: Boolean = false,
-    icon: androidx.compose.ui.graphics.vector.ImageVector = when (mode) {
+    icon: Any = when (mode) {
         DetectionMode.URL -> Icons.Default.Language
         DetectionMode.PHONE -> Icons.Default.Call
         DetectionMode.TEXT -> Icons.AutoMirrored.Filled.Message
         DetectionMode.PRICE -> Icons.Default.PhotoCamera
     },
-    accentColor: Color = MaterialTheme.colorScheme.primary,
+    accentColor: Color = Color(0xFFBB86FC),
     onNavigateToGenealogy: ((String) -> Unit)? = null,
     onSwitchMode: (DetectionMode) -> Unit = {},
     viewModel: MainViewModel = viewModel(factory = MainViewModel.provideFactory(LocalContext.current.applicationContext as android.app.Application))
@@ -145,27 +146,22 @@ fun GenericDetectionFlow(
         modifier = Modifier
             .fillMaxSize()
             .background(com.example.scamdetectorapp.ui.theme.AppBackgroundBrush)
-            // 點擊背景收起鍵盤
-            .pointerInput(Unit) {
-                detectTapGestures(onTap = {
-                    focusManager.clearFocus()
-                    keyboardController?.hide()
-                })
-            }
     ) {
         AnimatedVisibility(visible = step == ScreenStep.INPUT, enter = fadeIn(), exit = fadeOut()) {
             if (mode == DetectionMode.PRICE) {
-                PriceInputScreen(
-                    title = title,
-                    desc = desc,
-                    imageUri = if (viewModelInput.startsWith("uri:")) viewModelInput.removePrefix("uri:") else null,
-                    onImageSelected = { uri ->
-                        viewModel.setInput(mode, "uri:$uri")
-                    },
-                    onScan = { startScan() },
-                    currentMode = mode,
-                    onSwitchMode = onSwitchMode
-                )
+                    PriceInputScreen(
+                        title = title,
+                        desc = desc,
+                        imageUri = if (viewModelInput.startsWith("uri:")) viewModelInput.removePrefix("uri:") else null,
+                        onImageSelected = { uri ->
+                            viewModel.setInput(mode, "uri:$uri")
+                        },
+                        onScan = { startScan() },
+                        currentMode = mode,
+                        onSwitchMode = onSwitchMode,
+                        icon = icon,
+                        accentColor = accentColor
+                    )
             } else {
                 InputScreen(
                     title = title,
@@ -289,7 +285,7 @@ fun InputScreen(
     onScan: () -> Unit,
     keyboardType: KeyboardType,
     isMultiLine: Boolean,
-    icon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Default.Search,
+    icon: Any = Icons.Default.Search,
     accentColor: Color = MaterialTheme.colorScheme.primary,
     currentMode: DetectionMode = DetectionMode.URL,
     onSwitchMode: (DetectionMode) -> Unit = {}
@@ -309,37 +305,48 @@ fun InputScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState()) // Enable scrolling
-            .padding(24.dp),
+            .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // 頂部間距：避開系統欄並與首頁視覺一致
+        Spacer(modifier = Modifier.height(60.dp))
+
         com.example.scamdetectorapp.presentation.components.DetectionModeTabs(
             selected = currentMode,
             onSelect = onSwitchMode
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
-        Box(contentAlignment = Alignment.Center) {
-            // 柔光暈染：讓每個偵測模式在深黑底上有自己的識別色彩
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(accentColor.copy(alpha = 0.12f))
-            )
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(accentColor.copy(alpha = 0.18f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(34.dp))
+        Spacer(modifier = Modifier.height(32.dp)) // 增加與上方的間隔
+
+        // 直接顯示圖示
+        Box(
+            modifier = Modifier.size(64.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            when (icon) {
+                is androidx.compose.ui.graphics.vector.ImageVector -> {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+                is androidx.compose.ui.graphics.painter.Painter -> {
+                    Image(
+                        painter = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(56.dp)
+                    )
+                }
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text(title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = textWhite)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(desc, color = textGrey, fontSize = 14.sp, textAlign = TextAlign.Center)
+        
+        // 移除 desc 文字顯示
+        // Spacer(modifier = Modifier.height(8.dp))
+        // Text(desc, color = textGrey, fontSize = 14.sp, textAlign = TextAlign.Center)
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -409,7 +416,7 @@ fun InputScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(120.dp)) // 增加按鈕上方的間隔，將其推向底部位置
 
         Button(
             onClick = onScan,
@@ -435,7 +442,7 @@ fun InputScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(140.dp))
     }
 
 
@@ -485,13 +492,13 @@ fun PriceInputScreen(
     onImageSelected: (String) -> Unit,
     onScan: () -> Unit,
     currentMode: DetectionMode = DetectionMode.PRICE,
-    onSwitchMode: (DetectionMode) -> Unit = {}
+    onSwitchMode: (DetectionMode) -> Unit = {},
+    icon: Any = R.drawable.ic_solid_shopping_v2,
+    accentColor: Color = Color(0xFFBB86FC)
 ) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val accentColor = primaryColor
+    val primaryColor = Color(0xFFBB86FC)
     val textWhite = MaterialTheme.colorScheme.onBackground
     val textGrey = colorResource(R.color.scam_text_grey)
-    // 購物檢測維持原本的卡片色，不隨其他頁面的新配色調整
     val surfaceColor = Color(0xFF161614)
 
 
@@ -524,31 +531,40 @@ fun PriceInputScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState()) // Enable scrolling
-            .padding(24.dp),
+            .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // 頂部間距：避開系統欄並與首頁視覺一致
+        Spacer(modifier = Modifier.height(60.dp))
+
         com.example.scamdetectorapp.presentation.components.DetectionModeTabs(
             selected = currentMode,
             onSelect = onSwitchMode
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
-        Box(contentAlignment = Alignment.Center) {
-            // 柔光暈染：與其他偵測模式的圖示徽章風格統一
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(accentColor.copy(alpha = 0.12f))
-            )
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(accentColor.copy(alpha = 0.18f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = accentColor, modifier = Modifier.size(34.dp))
+        Spacer(modifier = Modifier.height(32.dp)) // 增加與上方的間隔
+
+        // 直接顯示圖示
+        Box(
+            modifier = Modifier.size(64.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            when (icon) {
+                is androidx.compose.ui.graphics.vector.ImageVector -> {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+                is androidx.compose.ui.graphics.painter.Painter -> {
+                    Image(
+                        painter = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(56.dp)
+                    )
+                }
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
@@ -558,32 +574,8 @@ fun PriceInputScreen(
             fontWeight = FontWeight.Bold,
             color = textWhite
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = desc,
-            color = textGrey,
-            fontSize = 14.sp,
-            textAlign = TextAlign.Center
-        )
 
         Spacer(modifier = Modifier.height(32.dp))
-
-        // Step 1: Upload Image (只有在沒圖片時顯示文字標題)
-        if (imageUri == null) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .background(primaryColor, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("1", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.width(12.dp))
-                Text("上傳商品圖片 (OCR 自動辨識)", color = textWhite, fontWeight = FontWeight.Bold)
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
 
         // Image Upload Area
         Surface(
@@ -723,7 +715,7 @@ fun PriceInputScreen(
             modifier = Modifier.padding(top = 8.dp)
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(140.dp))
     }
 }
 

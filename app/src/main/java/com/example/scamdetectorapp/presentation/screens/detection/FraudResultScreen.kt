@@ -104,9 +104,12 @@ fun FraudResultScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
+                .padding(horizontal = 24.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            // 頂部間距：避開系統欄
+            Spacer(modifier = Modifier.height(60.dp))
+
             // 頂部導覽列
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -303,6 +306,9 @@ fun FraudResultScreen(
                     )
                 }
             }
+            
+            // 底部留白，避免被導覽列遮擋
+            Spacer(Modifier.height(140.dp))
         }
 
         // 回報詐騙的底部彈窗 (BottomSheet)
