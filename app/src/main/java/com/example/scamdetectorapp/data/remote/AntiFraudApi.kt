@@ -40,6 +40,6 @@ interface AntiFraudApi {
     @Multipart
     @POST("/api/v1/price/analyze")
     suspend fun analyzePrice(
-        @Part image: MultipartBody.Part
+        @Part file: MultipartBody.Part
     ): AntiFraudResponse<ImageCheckResult>
 }

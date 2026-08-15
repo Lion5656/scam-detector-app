@@ -4,6 +4,7 @@ import com.example.scamdetectorapp.domain.model.DetectionMode
 
 data class ScanUiModel(
     val isSafe: Boolean,
+    val riskLevel: String,
     val score: Int,
     val title: String,
     val reasons: List<String>,

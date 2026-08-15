@@ -49,10 +49,10 @@ fun FraudResultScreen(
 
     // 根據分數判定風險等級、顏色與圖示
     val statusData = when {
+        result.score == 0 && result.riskLevel == "UNKNOWN" -> Triple("未知", colorResource(id = R.color.scam_neutral_gray), Icons.Default.Info)
         result.score > 79 -> Triple("高風險威脅", colorResource(id = R.color.scam_risk_red), Icons.Default.Warning)
         result.score in 40..79 -> Triple("中風險威脅", colorResource(id = R.color.scam_orange), Icons.Default.Warning)
-        result.score in 0..39 -> Triple("低風險威脅", colorResource(id = R.color.scam_safe_green), Icons.Filled.VerifiedUser)
-        else -> Triple("查無資料", colorResource(id = R.color.scam_neutral_gray), Icons.Default.Search)
+        else -> Triple("低風險威脅", colorResource(id = R.color.scam_safe_green), Icons.Filled.VerifiedUser)
     }
 
     val statusText = statusData.first
@@ -68,7 +68,7 @@ fun FraudResultScreen(
     // 將檢測結果格式化為文字，並透過系統 Intent 呼叫外部 App (Line, FB, X, IG 等) 進行分享
     val onShare = {
         val shareText = buildString {
-            appendLine("【Scam Guard 詐騙檢測報告 v1.0】")
+            appendLine("【Scam Guard 騙檢測報告 v1.0】")
             appendLine("\n原始內容：")
             appendLine(originalText)
             if (result.reasons.isNotEmpty()) {
@@ -175,28 +175,37 @@ fun FraudResultScreen(
             Spacer(Modifier.height(24.dp))
 
             // Details Section
-            Text("詳細資訊", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
-            Spacer(Modifier.height(16.dp))
+            if (result.riskLevel != "UNKNOWN") {
+                Text("詳細資訊", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
+                Spacer(Modifier.height(16.dp))
 
-            result.detailMap?.let { details ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = surfaceColor),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        val detailList = details.toList()
-                        detailList.forEachIndexed { index, pair ->
-                            DetailItem(label = pair.first, value = pair.second.toString(), color = textWhite, labelColor = textGrey)
-                            if (index < detailList.size - 1) {
-                                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = textWhite.copy(alpha = 0.05f))
+                result.detailMap?.let { details ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = surfaceColor),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            val detailList = details.toList()
+                            detailList.forEachIndexed { index, pair ->
+                                DetailItem(
+                                    label = pair.first,
+                                    value = pair.second.toString(),
+                                    color = textWhite,
+                                    labelColor = textGrey
+                                )
+                                if (index < detailList.size - 1) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(vertical = 12.dp),
+                                        color = textWhite.copy(alpha = 0.05f)
+                                    )
+                                }
                             }
                         }
                     }
                 }
+                Spacer(Modifier.height(24.dp))
             }
-
-            Spacer(Modifier.height(24.dp))
 
             // 分析詳情列表
             Text("分析詳情", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)

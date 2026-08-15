@@ -120,11 +120,11 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
             riskLevel.contains("高") -> "HIGH"
             riskLevel.contains("中")  -> "MEDIUM"
             riskLevel.contains("低") -> "LOW"
-            else -> "UNKNOWN"
+            riskLevel.contains("未知") -> "UNKNOWN"
+            else -> riskLevel.uppercase()
         }
 
-        // 基本分數判定 (後續可根據 mode 細修)
-        var score = when (rLevel.uppercase()) {
+        var score = result.score?.toIntOrNull() ?: when (rLevel.uppercase()) {
             "HIGH" -> 85
             "MEDIUM" -> 60
             "LOW" -> 20
@@ -162,13 +162,14 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
                 }
             }
             else -> {
-                title = "查無資料"
-                reasons.add("資料庫暫無此紀錄")
+                title = "未知"
+                reasons.add("暫無此紀錄")
             }
         }
 
         return ScanUiModel(
             isSafe = rLevel == "SAFE" || rLevel == "NODATA",
+            riskLevel = rLevel,
             score = score,
             title = title,
             reasons = reasons,

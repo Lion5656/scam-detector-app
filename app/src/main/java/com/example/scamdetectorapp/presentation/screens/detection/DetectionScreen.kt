@@ -58,6 +58,7 @@ import com.example.scamdetectorapp.R
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import com.example.scamdetectorapp.presentation.viewmodel.ScanUiState
+import com.example.scamdetectorapp.presentation.screens.detection.PriceResultScreen
 
 /**
  * 定義畫面顯示的四個階段
@@ -116,7 +117,8 @@ fun GenericDetectionFlow(
     fun startScan() {
         focusManager.clearFocus()
         keyboardController?.hide()
-        viewModel.scan(mode, localTextValue.text)
+        val input = if (mode == DetectionMode.PRICE) viewModelInput else localTextValue.text
+        viewModel.scan(mode, input)
     }
 
     fun reset() {
@@ -179,14 +181,22 @@ fun GenericDetectionFlow(
 
         AnimatedVisibility(visible = step == ScreenStep.RESULT, enter = fadeIn(), exit = fadeOut()) {
             if (uiState is ScanUiState.Success) {
-                FraudResultScreen(
-                    originalText = localTextValue.text,
-                    result = (uiState as ScanUiState.Success).result,
-                    onBack = { reset() },
-                    onViewGenealogy = if (mode == DetectionMode.PHONE) {
-                        { onNavigateToGenealogy?.invoke(localTextValue.text) }
-                    } else null
-                )
+                val result = (uiState as ScanUiState.Success).result
+                if (mode == DetectionMode.PRICE) {
+                    PriceResultScreen(
+                        result = result,
+                        onBack = { reset() }
+                    )
+                } else {
+                    FraudResultScreen(
+                        originalText = localTextValue.text,
+                        result = result,
+                        onBack = { reset() },
+                        onViewGenealogy = if (mode == DetectionMode.PHONE) {
+                            { onNavigateToGenealogy?.invoke(localTextValue.text) }
+                        } else null
+                    )
+                }
             }
         }
 

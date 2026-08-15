@@ -86,9 +86,13 @@ class AntiFraudRepository(private val context: Context? = null) {
                     val uri = input.removePrefix("uri:").toUri()
                     val file = uriToFile(context, uri) ?: throw Exception("無法讀取圖片檔案，請檢查權限")
                     
+                    // 取得正確的 Content-Type
+                    val contentType = context.contentResolver.getType(uri)  ?: ""
+                    val mediaType = contentType.toMediaTypeOrNull()
+                    
                     try {
-                        val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
-                        val body = MultipartBody.Part.createFormData("image", file.name, requestFile)
+                        val requestFile = file.asRequestBody(mediaType)
+                        val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
                         
                         val response = api.analyzePrice(body)
                         if (response.success) {
@@ -99,10 +103,11 @@ class AntiFraudRepository(private val context: Context? = null) {
                                 score = data?.riskScore,
                                 detailInfo = mutableMapOf<String, Any>().apply {
                                     data?.productName?.let { put("商品名稱", it) }
-                                    data?.condition?.let { put("商品狀況", it) }
-                                    data?.listedPrice?.let { put("刊登價格", it) }
-                                    data?.marketPrice?.let { put("市場價格中位數", it) }
+                                    data?.condition?.let { put("商品狀態", it) }
+                                    data?.listedPrice?.let { put("商品價格", it) }
+                                    data?.marketPrice?.let { put("市場價格", it) }
                                     data?.sellerName?.let { put("賣家名稱", it) }
+                                    data?.result?.let { put("結果說明", it) }
                                 }
                             )
                         } else {
