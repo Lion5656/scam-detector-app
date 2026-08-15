@@ -305,120 +305,117 @@ fun InputScreen(
     val focusRequester = remember { FocusRequester() }
     var showHistoryDialog by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState()) // Enable scrolling
-                .padding(horizontal = 24.dp)
-                .padding(top = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            com.example.scamdetectorapp.presentation.components.DetectionModeTabs(
-                selected = currentMode,
-                onSelect = onSwitchMode
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()) // Enable scrolling
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        com.example.scamdetectorapp.presentation.components.DetectionModeTabs(
+            selected = currentMode,
+            onSelect = onSwitchMode
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+        Box(contentAlignment = Alignment.Center) {
+            // 柔光暈染：讓每個偵測模式在深黑底上有自己的識別色彩
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(accentColor.copy(alpha = 0.12f))
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-            Box(contentAlignment = Alignment.Center) {
-                // 柔光暈染：讓每個偵測模式在深黑底上有自己的識別色彩
-                Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(accentColor.copy(alpha = 0.12f))
-                )
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(accentColor.copy(alpha = 0.18f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(34.dp))
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = textWhite)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(desc, color = textGrey, fontSize = 14.sp, textAlign = TextAlign.Center)
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Card(
-                colors = CardDefaults.cardColors(containerColor = surfaceColor),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(accentColor.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    OutlinedTextField(
-                        value = value,
-                        onValueChange = onValueChange,
-                        placeholder = { Text(placeholder, color = colorResource(R.color.scam_text_tertiary)) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(if (isMultiLine) 150.dp else 60.dp)
-                            .focusRequester(focusRequester),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = accentColor,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedTextColor = textWhite,
-                            unfocusedTextColor = textWhite,
-                            focusedContainerColor = componentColor,
-                            unfocusedContainerColor = componentColor,
-                            disabledContainerColor = componentColor,
-                            errorContainerColor = componentColor,
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = keyboardType,
-                            imeAction = if(isMultiLine) ImeAction.Default else ImeAction.Done,
-                            autoCorrect = true
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                if (value.text.isNotBlank()) onScan()
-                                else {
-                                    focusManager.clearFocus()
-                                    keyboardController?.hide()
-                                }
+                Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(34.dp))
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = textWhite)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(desc, color = textGrey, fontSize = 14.sp, textAlign = TextAlign.Center)
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Card(
+            colors = CardDefaults.cardColors(containerColor = surfaceColor),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    placeholder = { Text(placeholder, color = colorResource(R.color.scam_text_tertiary)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(if (isMultiLine) 150.dp else 60.dp)
+                        .focusRequester(focusRequester),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = accentColor,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedTextColor = textWhite,
+                        unfocusedTextColor = textWhite,
+                        focusedContainerColor = componentColor,
+                        unfocusedContainerColor = componentColor,
+                        disabledContainerColor = componentColor,
+                        errorContainerColor = componentColor,
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = keyboardType,
+                        imeAction = if(isMultiLine) ImeAction.Default else ImeAction.Done,
+                        autoCorrect = true
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            if (value.text.isNotBlank()) onScan()
+                            else {
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
                             }
-                        ),
-                        singleLine = !isMultiLine
+                        }
+                    ),
+                    singleLine = !isMultiLine
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    InputChip(
+                        icon = Icons.Outlined.ContentPaste,
+                        label = "貼上",
+                        color = componentColor,
+                        textColor = textGrey,
+                        iconColor = accentColor,
+                        onClick = {
+                            clipboardManager.getText()?.text?.let { onValueChange(TextFieldValue(it)) }
+                        }
                     )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        InputChip(
-                            icon = Icons.Outlined.ContentPaste,
-                            label = "貼上",
-                            color = componentColor,
-                            textColor = textGrey,
-                            iconColor = accentColor,
-                            onClick = {
-                                clipboardManager.getText()?.text?.let { onValueChange(TextFieldValue(it)) }
-                            }
-                        )
-                        InputChip(
-                            icon = Icons.Default.History,
-                            label = "歷史紀錄",
-                            color = componentColor,
-                            textColor = textGrey,
-                            onClick = { showHistoryDialog = true }
-                        )
-                    }
+                    InputChip(
+                        icon = Icons.Default.History,
+                        label = "歷史紀錄",
+                        color = componentColor,
+                        textColor = textGrey,
+                        onClick = { showHistoryDialog = true }
+                    )
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(32.dp))
 
         Button(
             onClick = onScan,
             enabled = value.text.isNotBlank(),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(top = 16.dp, bottom = 96.dp)
                 .height(56.dp),
             shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(
@@ -426,11 +423,21 @@ fun InputScreen(
                 disabledContainerColor = surfaceColor
             )
         ) {
-            Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
-            Spacer(Modifier.width(8.dp))
-            Text("開始檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
+                Spacer(Modifier.width(8.dp))
+                Text("開始檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                // 補償左側 Icon + Spacer 的寬度 (24dp + 8dp = 32dp)，使文字達成視覺上的絕對置中
+                Spacer(Modifier.width(32.dp))
+            }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
     }
+
 
     if (showHistoryDialog) {
         AlertDialog(
@@ -698,9 +705,15 @@ fun PriceInputScreen(
                 disabledContainerColor = surfaceColor
             )
         ) {
-            Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
-            Spacer(Modifier.width(8.dp))
-            Text("開始檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
+                Spacer(Modifier.width(8.dp))
+                Text("開始檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Spacer(Modifier.width(32.dp))
+            }
         }
 
         Text(
