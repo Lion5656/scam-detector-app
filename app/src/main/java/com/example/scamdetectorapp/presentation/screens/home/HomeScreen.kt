@@ -75,7 +75,7 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF06090E))) {
+    Box(modifier = Modifier.fillMaxSize().background(com.example.scamdetectorapp.ui.theme.AppBackgroundBrush)) {
         // 背景網格
         Canvas(modifier = Modifier.fillMaxSize()) {
             val gridSize = 40.dp.toPx()
@@ -128,10 +128,6 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // 促銷廣告橫幅
-            PromotionBannerSection()
-
-            Spacer(modifier = Modifier.height(20.dp))
 
             // --- 主動防護 ---
             Text(
@@ -480,124 +476,4 @@ private fun hasUsageStatsPermission(context: Context): Boolean {
     val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
     val mode = @Suppress("DEPRECATION") appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
     return mode == AppOpsManager.MODE_ALLOWED
-}
-
-/**
- * 促銷廣告橫幅組件
- */
-@Composable
-private fun PromotionBanner() {
-    val scamPrimary = colorResource(R.color.scam_primary)
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight(), // 讓卡片高度根據內容自適應，避免過大
-        shape = RoundedCornerShape(20.dp), // 微調圓角讓比例更精緻
-        border = BorderStroke(
-            width = 1.2.dp,
-            brush = Brush.linearGradient(
-                colors = listOf(
-                    scamPrimary.copy(alpha = 0.6f),
-                    scamPrimary.copy(alpha = 0.1f),
-                    scamPrimary.copy(alpha = 0.7f),
-                    scamPrimary.copy(alpha = 0.1f),
-                    scamPrimary.copy(alpha = 0.5f)
-                )
-            )
-        ),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF121A21))
-    ) {
-        // 使用 BoxWithConstraints 作為底層，才能正確拿到寬度與 matchParentSize
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-        ) {
-            val isSmallScreen = maxWidth < 360.dp
-
-            // 1. 背景裝飾：科技感發光效果 (自適應卡片大小)
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .align(Alignment.Center)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(scamPrimary.copy(alpha = 0.12f), Color.Transparent)
-                        )
-                    )
-            )
-
-            // 2. 科技背景：細微點狀矩陣 (使用 matchParentSize 填滿當前大小)
-            Canvas(modifier = Modifier.matchParentSize().alpha(0.08f)) {
-                val gap = 12.dp.toPx()
-                for (x in 0..size.width.toInt() step gap.toInt()) {
-                    for (y in 0..size.height.toInt() step gap.toInt()) {
-                        drawCircle(
-                            color = scamPrimary,
-                            radius = 1.dp.toPx(),
-                            center = Offset(x.toFloat(), y.toFloat())
-                        )
-                    }
-                }
-            }
-
-            // 3. 主要內容層
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 10.dp, end = 24.dp, top = 36.dp, bottom = 18.dp), // 增加上方內襯間距
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center // 讓整排內容在卡片內置中
-            ) {
-                // 圖標容器
-                Box(
-                    modifier = Modifier
-                        .size(46.dp) // 稍微縮小一點，更符合「稍大於文字」的精緻感
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFF2979FF),
-                                    Color(0xFF00E5FF),
-                                    Color(0xFFD500F9)
-                                )
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Shield,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(30.dp))
-
-                Column(
-                    horizontalAlignment = Alignment.Start,
-                    modifier = Modifier.wrapContentSize()
-                ) {
-                    Text(
-                        text = "數位守護 ‧ 全天候命",
-                        color = Color.White,
-                        fontSize = if (isSmallScreen) 16.sp else 18.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 0.5.sp,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "透過 AI 技術準確攔截威脅",
-                        color = Color.Gray,
-                        fontSize = if (isSmallScreen) 12.sp else 13.sp,
-                        lineHeight = 16.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-        }
-    }
 }

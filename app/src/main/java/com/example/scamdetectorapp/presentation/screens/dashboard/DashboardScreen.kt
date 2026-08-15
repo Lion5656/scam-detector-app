@@ -46,7 +46,7 @@ fun DashboardScreen() {
     var selectedTab by remember { mutableIntStateOf(0) }
     var learningProgress by remember { mutableIntStateOf(87) }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF06090E))) {
+    Box(modifier = Modifier.fillMaxSize().background(com.example.scamdetectorapp.ui.theme.AppBackgroundBrush)) {
         // 背景網格
         Canvas(modifier = Modifier.fillMaxSize()) {
             val gridSize = 40.dp.toPx()

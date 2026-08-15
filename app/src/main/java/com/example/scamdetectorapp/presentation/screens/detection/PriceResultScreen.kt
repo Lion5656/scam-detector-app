@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.scamdetectorapp.R
+import com.example.scamdetectorapp.presentation.components.RiskScoreDashboard
 import com.example.scamdetectorapp.presentation.model.ScanUiModel
 
 @Composable
@@ -31,11 +33,13 @@ fun PriceResultScreen(
 ) {
     val textWhite = MaterialTheme.colorScheme.onBackground
     val textGrey = colorResource(R.color.scam_text_grey)
-    val surfaceColor = MaterialTheme.colorScheme.surface
+    // 購物檢測維持原本的元件色，不隨其他頁面的新配色調整
+    val componentColor = Color(0xFF1E1E1C)
 
-    // 根據分數判定風險等級、顏色與圖示
+    // 根據分數判定風險等級、顏色與圖示：與其他結果頁共用同一套語意色邏輯
+    val isUnknown = result.score == 0 && result.riskLevel == "UNKNOWN"
     val statusData = when {
-        result.score == 0 && result.riskLevel == "UNKNOWN" -> Triple("未知", colorResource(id = R.color.scam_neutral_gray), Icons.Default.Info)
+        isUnknown -> Triple("未知", colorResource(id = R.color.scam_neutral_gray), Icons.Default.Info)
         result.score > 79 -> Triple("高風險威脅", colorResource(id = R.color.scam_risk_red), Icons.Default.Warning)
         result.score in 40..79 -> Triple("中風險威脅", colorResource(id = R.color.scam_orange), Icons.Default.Warning)
         else -> Triple("低風險威脅", colorResource(id = R.color.scam_safe_green), Icons.Filled.VerifiedUser)
@@ -62,41 +66,25 @@ fun PriceResultScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = textWhite)
             }
             Spacer(Modifier.width(8.dp))
-            Text("檢測結果", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
+            Text("檢測結果・購物", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
         }
 
-        // 風險結果 Header
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = surfaceColor),
-            shape = RoundedCornerShape(24.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(statusIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(56.dp))
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    statusText,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = statusColor,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "風險指數 ${result.score}%",
-                    color = textGrey,
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
+        Spacer(Modifier.height(8.dp))
 
-        Spacer(Modifier.height(32.dp))
+        // 風險儀表板：分數 → 說明文字 → 風險徽章 → 語意色進度條，直接置於頁面背景上
+        RiskScoreDashboard(
+            score = result.score,
+            caption = "風險分數",
+            badgeText = statusText,
+            badgeIcon = statusIcon,
+            color = statusColor,
+            trackColor = statusColor.copy(alpha = 0.15f),
+            labelColor = textGrey,
+            useGradient = !isUnknown,
+            modifier = Modifier.padding(vertical = 16.dp)
+        )
+
+        Spacer(Modifier.height(24.dp))
 
         // 商品資訊標題
         Text("商品資訊", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
@@ -104,33 +92,42 @@ fun PriceResultScreen(
 
         // 資訊列表
         val details = result.detailMap ?: emptyMap()
-        
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            InfoRow("商品名稱", details["商品名稱"]?.toString() ?: "未知", textWhite, textGrey)
-            InfoRow("商品狀態", details["商品狀態"]?.toString() ?: "未知", textWhite, textGrey)
-            
-            HorizontalDivider(color = textWhite.copy(alpha = 0.05f))
-            
-            // 價格資訊與位置條
+
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            DetailPill("商品名稱", details["商品名稱"]?.toString() ?: "未知", statusColor, textWhite, textGrey, componentColor)
+            DetailPill("商品狀態", details["商品狀態"]?.toString() ?: "未知", statusColor, textWhite, textGrey, componentColor)
+
+            // 價格資訊與位置條：保留原本的商品價格對比圖，僅套用新配色
             val listedPriceStr = details["商品價格"]?.toString()?.filter { it.isDigit() } ?: "0"
             val marketPriceStr = details["市場價格"]?.toString()?.filter { it.isDigit() } ?: "0"
             val listedPrice = listedPriceStr.toDoubleOrNull() ?: 0.0
             val marketPrice = marketPriceStr.toDoubleOrNull() ?: 0.0
 
-            PriceSection(
-                listedPriceLabel = details["商品價格"]?.toString() ?: "NT$0",
-                marketPriceLabel = details["市場價格"]?.toString() ?: "NT$0",
-                listedPrice = listedPrice,
-                marketPrice = marketPrice,
-                statusColor = statusColor
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(componentColor, RoundedCornerShape(14.dp))
+                    .padding(16.dp)
+            ) {
+                PriceSection(
+                    listedPriceLabel = details["商品價格"]?.toString() ?: "NT$0",
+                    marketPriceLabel = details["市場價格"]?.toString() ?: "NT$0",
+                    listedPrice = listedPrice,
+                    marketPrice = marketPrice,
+                    statusColor = statusColor
+                )
+            }
 
-            HorizontalDivider(color = textWhite.copy(alpha = 0.05f))
+            DetailPill("賣家名稱", details["賣家名稱"]?.toString() ?: "未知", statusColor, textWhite, textGrey, componentColor)
 
-            InfoRow("賣家名稱", details["賣家名稱"]?.toString() ?: "未知", textWhite, textGrey)
-            
-            // 結果說明
-            Column(modifier = Modifier.padding(top = 8.dp)) {
+            // 結果說明：收合式次要卡片同款風格，視覺上比儀表板安靜
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(componentColor)
+                    .padding(16.dp)
+            ) {
                 Text("結果說明", color = textGrey, fontSize = 14.sp)
                 Spacer(Modifier.height(8.dp))
                 Text(
@@ -142,7 +139,7 @@ fun PriceResultScreen(
             }
         }
 
-        Spacer(Modifier.height(48.dp))
+        Spacer(Modifier.height(32.dp))
 
         // 再次檢測按鈕
         Button(
@@ -150,32 +147,41 @@ fun PriceResultScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
             Text("再次檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
         }
-        
+
         Spacer(Modifier.height(32.dp))
     }
 }
 
 @Composable
-fun InfoRow(label: String, value: String, textColor: Color, labelColor: Color) {
+private fun DetailPill(
+    label: String,
+    value: String,
+    dotColor: Color,
+    textColor: Color,
+    labelColor: Color,
+    backgroundColor: Color
+) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(backgroundColor, RoundedCornerShape(14.dp))
+            .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
-        Text(label, color = labelColor, fontSize = 14.sp, modifier = Modifier.width(80.dp))
-        Text(
-            value,
-            color = textColor,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f)
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(dotColor)
         )
+        Spacer(Modifier.width(10.dp))
+        Text(label, color = labelColor, fontSize = 14.sp, modifier = Modifier.weight(1f))
+        Text(value, color = textColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -215,7 +221,7 @@ fun PriceSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(4.dp)
-                    .background(textGrey.copy(alpha = 0.2f), CircleShape)
+                    .background(textGrey.copy(alpha = 0.25f), CircleShape)
                     .align(Alignment.Center)
             )
 

@@ -69,7 +69,7 @@ fun PhoneGenealogyScreen(phoneNumber: String, onBack: () -> Unit) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF06090E))) {
+    Box(modifier = Modifier.fillMaxSize().background(com.example.scamdetectorapp.ui.theme.AppBackgroundBrush)) {
         // 背景網格
         val infiniteTransition = rememberInfiniteTransition(label = "bg")
         val gridAlpha by infiniteTransition.animateFloat(0.02f, 0.08f, infiniteRepeatable(tween(3000), RepeatMode.Reverse), label = "grid")

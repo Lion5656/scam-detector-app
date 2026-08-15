@@ -48,20 +48,26 @@ class MainActivity : ComponentActivity() {
 // ==================== 1. 主題設定 (讀取 XML Colors) ====================
 @Composable
 fun ScamGuardTheme(content: @Composable () -> Unit) {
-    // 從 res/values/colors.xml 讀取顏色
+    // 從 res/values/colors.xml 讀取顏色：頁面／卡片／元件三層明度堆疊
     val darkBackground = colorResource(id = R.color.scam_background)
     val surfaceCard = colorResource(id = R.color.scam_surface)
+    val surfaceComponent = colorResource(id = R.color.scam_component)
     val primaryBlue = colorResource(id = R.color.scam_primary)
     val textWhite = colorResource(id = R.color.scam_text_white)
+    val textGrey = colorResource(id = R.color.scam_text_grey)
+    val riskRed = colorResource(id = R.color.scam_risk_red)
 
     // 設定 Material Theme 配色
     MaterialTheme(
         colorScheme = darkColorScheme(
             background = darkBackground,
             surface = surfaceCard,
+            surfaceVariant = surfaceComponent,
             primary = primaryBlue,
             onBackground = textWhite,
-            onSurface = textWhite
+            onSurface = textWhite,
+            onSurfaceVariant = textGrey,
+            error = riskRed
         )
     ) {
         content()

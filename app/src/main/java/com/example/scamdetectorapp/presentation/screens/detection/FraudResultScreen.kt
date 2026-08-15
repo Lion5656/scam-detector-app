@@ -2,6 +2,7 @@ package com.example.scamdetectorapp.presentation.screens.detection
 
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -27,6 +29,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.scamdetectorapp.R
+import com.example.scamdetectorapp.domain.model.DetectionMode
+import com.example.scamdetectorapp.presentation.components.RiskScoreDashboard
 import com.example.scamdetectorapp.presentation.model.ScanUiModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,22 +51,32 @@ fun FraudResultScreen(
     )
     var selectedType by remember { mutableStateOf("") }
 
-    // 根據分數判定風險等級、顏色與圖示
-    val statusData = when {
-        result.score == 0 && result.riskLevel == "UNKNOWN" -> Triple("未知", colorResource(id = R.color.scam_neutral_gray), Icons.Default.Info)
-        result.score > 79 -> Triple("高風險威脅", colorResource(id = R.color.scam_risk_red), Icons.Default.Warning)
-        result.score in 40..79 -> Triple("中風險威脅", colorResource(id = R.color.scam_orange), Icons.Default.Warning)
-        else -> Triple("低風險威脅", colorResource(id = R.color.scam_safe_green), Icons.Filled.VerifiedUser)
+    // 根據分數判定風險等級、顏色、圖示與嚴重度短標籤：全頁共用同一語意色
+    val isUnknown = result.score == 0 && result.riskLevel == "UNKNOWN"
+    data class RiskStatus(
+        val text: String,
+        val color: Color,
+        val icon: androidx.compose.ui.graphics.vector.ImageVector,
+        val severity: String
+    )
+    val status = when {
+        isUnknown -> RiskStatus("未知", colorResource(id = R.color.scam_neutral_gray), Icons.Default.Info, "未知")
+        result.score > 79 -> RiskStatus("高風險威脅", colorResource(id = R.color.scam_risk_red), Icons.Default.Warning, "高")
+        result.score in 40..79 -> RiskStatus("中風險威脅", colorResource(id = R.color.scam_orange), Icons.Default.Warning, "中")
+        else -> RiskStatus("低風險威脅", colorResource(id = R.color.scam_safe_green), Icons.Filled.VerifiedUser, "低")
     }
 
-    val statusText = statusData.first
-    val statusColor = statusData.second
-    val statusIcon = statusData.third
+    val statusText = status.text
+    val statusColor = status.color
+    val statusIcon = status.icon
+    val severityLabel = status.severity
+    val isLowRisk = !isUnknown && result.score <= 39
 
     val textWhite = MaterialTheme.colorScheme.onBackground
     val textGrey = colorResource(R.color.scam_text_grey)
+    val textTertiary = colorResource(R.color.scam_text_tertiary)
     val surfaceColor = MaterialTheme.colorScheme.surface
-    val backgroundColor = MaterialTheme.colorScheme.background
+    val componentColor = MaterialTheme.colorScheme.surfaceVariant
 
     // 新增代碼：定義分享功能邏輯
     // 將檢測結果格式化為文字，並透過系統 Intent 呼叫外部 App (Line, FB, X, IG 等) 進行分享
@@ -102,8 +116,14 @@ fun FraudResultScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = textWhite)
                 }
                 Spacer(Modifier.width(8.dp))
-                Text("檢測結果", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
-                
+                val modeLabel = when (result.mode) {
+                    DetectionMode.URL -> "網址"
+                    DetectionMode.PHONE -> "電話"
+                    DetectionMode.TEXT -> "簡訊"
+                    DetectionMode.PRICE -> "購物"
+                }
+                Text("檢測結果・$modeLabel", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
+
                 Spacer(Modifier.weight(1f))
                 
                 // 新增代碼：右上角分享按鈕
@@ -114,61 +134,33 @@ fun FraudResultScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            // 指數顯示卡片
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = surfaceColor),
-                shape = RoundedCornerShape(24.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(statusIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(64.dp))
-                    Spacer(Modifier.height(16.dp))
-                    Text(statusText, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = statusColor)
-                    Spacer(Modifier.height(8.dp))
-
-                    Text(if (result.score > 0) "風險指數" else "", color = textGrey, fontSize = 12.sp)
-                    Spacer(Modifier.height(16.dp))
-
-                    if (result.score >= 0) {
-                        // 新增代碼：自定義連貫進度條
-                        // 使用 Box 堆疊取代 LinearProgressIndicator，解決 Material 3 預設元件的斷裂感問題
-                        val barShape = RoundedCornerShape(4.dp)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(10.dp)
-                                .background(statusColor.copy(alpha = 0.15f), barShape) // 進度條底色
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(fraction = (result.score / 100f).coerceIn(0f, 1f))
-                                    .fillMaxHeight()
-                                    .background(statusColor, barShape) // 實際進度顏色
-                            )
-                        }
-                    }
-
-                    if (result.score >= 0) {
-                        Text("${result.score}%", color = textWhite, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-                    }
-                }
-            }
+            // 風險儀表板：分數 → 說明文字 → 風險徽章 → 語意色進度條，直接置於頁面背景上
+            RiskScoreDashboard(
+                score = result.score,
+                caption = "風險分數",
+                badgeText = statusText,
+                badgeIcon = statusIcon,
+                color = statusColor,
+                trackColor = statusColor.copy(alpha = 0.15f),
+                labelColor = textGrey,
+                useGradient = !isUnknown,
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
 
             // 新增：查看族譜按鈕 (僅在有提供 callback 時顯示)
             if (onViewGenealogy != null) {
                 Spacer(Modifier.height(16.dp))
                 OutlinedButton(
                     onClick = onViewGenealogy,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFF2979FF)),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(50)
                 ) {
-                    Icon(Icons.Default.Hub, contentDescription = null, tint = Color(0xFF448AFF), modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Hub, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("查看號碼關聯族譜", color = Color(0xFF448AFF), fontWeight = FontWeight.Bold)
+                    Text("查看號碼關聯族譜", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -180,26 +172,34 @@ fun FraudResultScreen(
                 Spacer(Modifier.height(16.dp))
 
                 result.detailMap?.let { details ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = surfaceColor),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            val detailList = details.toList()
-                            detailList.forEachIndexed { index, pair ->
-                                DetailItem(
-                                    label = pair.first,
-                                    value = pair.second.toString(),
-                                    color = textWhite,
-                                    labelColor = textGrey
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        details.toList().forEach { pair ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(componentColor, RoundedCornerShape(14.dp))
+                                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(statusColor)
                                 )
-                                if (index < detailList.size - 1) {
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(vertical = 12.dp),
-                                        color = textWhite.copy(alpha = 0.05f)
-                                    )
-                                }
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    pair.first,
+                                    color = textGrey,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    pair.second.toString(),
+                                    color = textWhite,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
@@ -207,50 +207,100 @@ fun FraudResultScreen(
                 Spacer(Modifier.height(24.dp))
             }
 
-            // 分析詳情列表
-            Text("分析詳情", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
-            Spacer(Modifier.height(16.dp))
+            // 分析詳情列表：逐項卡片，左側判斷依據、右側嚴重度標籤，同一語意色貫穿
+            if (result.reasons.isNotEmpty()) {
+                Text("分析詳情", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
+                Spacer(Modifier.height(16.dp))
 
-            result.reasons.forEach { reason ->
-                Row(modifier = Modifier.padding(bottom = 12.dp), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Default.Info, contentDescription = null, tint = statusColor, modifier = Modifier.size(20.dp).padding(top = 2.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Text(reason, color = textGrey, fontSize = 15.sp, lineHeight = 22.sp)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    result.reasons.forEach { reason ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(componentColor, RoundedCornerShape(14.dp))
+                                .padding(horizontal = 16.dp, vertical = 14.dp)
+                        ) {
+                            Text(
+                                reason,
+                                color = textWhite,
+                                fontSize = 14.sp,
+                                lineHeight = 20.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                severityLabel,
+                                color = statusColor,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
+
+                Spacer(Modifier.height(24.dp))
             }
 
-            Spacer(Modifier.height(24.dp))
-
-            // 原始文字內容顯示
-            Text("原始內容", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
-            Spacer(Modifier.height(8.dp))
-            Box(
+            // 原始文字內容顯示：收合式次要卡片，視覺上比儀表板安靜
+            var contentExpanded by remember { mutableStateOf(false) }
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(surfaceColor, RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(componentColor)
+                    .clickable { contentExpanded = !contentExpanded }
                     .padding(16.dp)
             ) {
-                Text(originalText, color = textGrey, fontSize = 14.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("原始內容", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textWhite)
+                    Icon(
+                        if (contentExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = textGrey
+                    )
+                }
+                AnimatedVisibility(visible = contentExpanded) {
+                    Text(
+                        originalText,
+                        color = textGrey,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                }
             }
 
             Spacer(Modifier.height(32.dp))
 
-            // 底部操作按鈕
+            // 底部操作按鈕：低風險時「回報詐騙」降為中性次要樣式，避免過度強調
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Button(
+                OutlinedButton(
                     onClick = onBack,
-                    modifier = Modifier.weight(1f).height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = surfaceColor)
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    shape = RoundedCornerShape(50),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, textTertiary)
                 ) {
-                    Text("再測一次", color = textWhite)
+                    Text("再測一次", color = textWhite, fontWeight = FontWeight.Bold)
                 }
 
                 Button(
-                    onClick = { if (result.score > 39) showSheet = true else onBack() },
-                    modifier = Modifier.weight(1f).height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = statusColor)
+                    onClick = { if (!isLowRisk) showSheet = true else onBack() },
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isLowRisk) MaterialTheme.colorScheme.primary else statusColor
+                    )
                 ) {
-                    Text(if (result.score > 39) "回報詐騙" else "完成", color = Color.White)
+                    Text(
+                        if (isLowRisk) "完成" else "詐騙回報",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
@@ -291,7 +341,7 @@ fun FraudResultScreen(
                                 modifier = Modifier
                                     .aspectRatio(1.2f)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(if (isSelected) statusColor else backgroundColor)
+                                    .background(if (isSelected) statusColor else componentColor)
                                     .clickable { selectedType = type }
                                     .padding(8.dp)
                             ) {
@@ -322,23 +372,12 @@ fun FraudResultScreen(
                             .padding(vertical = 24.dp)
                             .height(56.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = statusColor),
-                        shape = RoundedCornerShape(28.dp)
+                        shape = RoundedCornerShape(50)
                     ) {
                         Text("送出", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun DetailItem(label: String, value: String, color: Color, labelColor: Color) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(label, color = labelColor, fontSize = 14.sp)
-        Text(value, color = color, fontSize = 14.sp, fontWeight = FontWeight.Medium)
     }
 }
