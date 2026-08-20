@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -67,15 +68,24 @@ fun PriceResultScreen(
 
         // 頂部導覽列
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = textWhite)
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Color.White.copy(alpha = 0.05f), CircleShape)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_back_less_than),
+                    contentDescription = "返回", 
+                    tint = textWhite,
+                    modifier = Modifier.size(36.dp)
+                )
             }
-            Spacer(Modifier.width(8.dp))
+            
+            Spacer(Modifier.width(12.dp))
             Text("檢測結果・購物", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
         }
 

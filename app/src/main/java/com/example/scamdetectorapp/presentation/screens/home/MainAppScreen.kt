@@ -5,14 +5,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -87,8 +85,7 @@ fun MainAppScreen() {
                                 })
                             } else {
                                 // 顯示檢測流程
-                                val mode = activeDetectionMode!!
-                                when (mode) {
+                                when (val mode = activeDetectionMode!!) {
                                     DetectionMode.URL -> key(DetectionMode.URL) {
                                         GenericDetectionFlow(
                                             mode = DetectionMode.URL,
@@ -98,6 +95,10 @@ fun MainAppScreen() {
                                             icon = ImageVector.vectorResource(R.drawable.ic_solid_url_v3),
                                             accentColor = Color(0xFFA78BFA),
                                             onSwitchMode = { activeDetectionMode = it },
+                                            onExitFlow = { 
+                                                viewModel.resetState(mode)
+                                                activeDetectionMode = null 
+                                            },
                                             viewModel = viewModel
                                         )
                                     }
@@ -111,6 +112,10 @@ fun MainAppScreen() {
                                             accentColor = Color(0xFFA78BFA),
                                             onNavigateToGenealogy = { genealogyPhoneNumber = it },
                                             onSwitchMode = { activeDetectionMode = it },
+                                            onExitFlow = { 
+                                                viewModel.resetState(mode)
+                                                activeDetectionMode = null 
+                                            },
                                             viewModel = viewModel
                                         )
                                     }
@@ -118,12 +123,13 @@ fun MainAppScreen() {
                                         GenericDetectionFlow(
                                             mode = DetectionMode.TEXT,
                                             title = "檢測詐騙簡訊",
-                                            placeholder = "貼上簡訊內容...",
+                                            placeholder = "輸入簡訊文字內容...",
                                             desc = "",
                                             icon = ImageVector.vectorResource(R.drawable.ic_solid_message),
                                             accentColor = Color(0xFFA78BFA),
                                             isMultiLine = true,
                                             onSwitchMode = { activeDetectionMode = it },
+                                            onExitFlow = { activeDetectionMode = null },
                                             viewModel = viewModel
                                         )
                                     }
@@ -136,6 +142,7 @@ fun MainAppScreen() {
                                             icon = ImageVector.vectorResource(R.drawable.ic_solid_shopping_v2),
                                             accentColor = Color(0xFFA78BFA),
                                             onSwitchMode = { activeDetectionMode = it },
+                                            onExitFlow = { activeDetectionMode = null },
                                             viewModel = viewModel
                                         )
                                     }
@@ -143,7 +150,7 @@ fun MainAppScreen() {
                             }
                         }
 
-                        "儀表板" -> DashboardScreen()
+                        "儀表板" -> DashboardScreen(onBack = { currentTab = "首頁" })
 
                         "新聞" -> NewsScreen(onBack = { currentTab = "首頁" })
 
@@ -154,14 +161,15 @@ fun MainAppScreen() {
                 }
 
                 // 將 CustomBottomBar 移入 Box 中並置於底部中心，達成真正的「懸浮於內容之上」
-                Box(
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                ) {
-                    // 若處於檢測模式中，傳遞空字串使底部欄不顯示任何選中狀態
-                    val displayedTab = if (activeDetectionMode == null) currentTab else ""
-                    CustomBottomBar(displayedTab) { selected ->
-                        currentTab = selected
-                        activeDetectionMode = null
+                val hideBottomBar = activeDetectionMode != null || currentTab == "儀表板" || currentTab == "新聞"
+                if (!hideBottomBar) {
+                    Box(
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    ) {
+                        CustomBottomBar(currentTab) { selected ->
+                            currentTab = selected
+                            activeDetectionMode = null
+                        }
                     }
                 }
             }

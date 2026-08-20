@@ -3,6 +3,7 @@ package com.example.scamdetectorapp.presentation.screens.home
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
@@ -46,19 +48,31 @@ fun NewsScreen(onBack: () -> Unit) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = textWhite)
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Color.White.copy(alpha = 0.05f), androidx.compose.foundation.shape.CircleShape)
+            ) {
+                Icon(
+                    painter = androidx.compose.ui.res.painterResource(R.drawable.ic_back_less_than),
+                    contentDescription = "返回", 
+                    tint = textWhite,
+                    modifier = Modifier.size(36.dp)
+                )
             }
-            Text("防詐資訊看板", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            Text("防詐資訊看板", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = textWhite)
         }
 
         // --- 滾動列表 ---
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 140.dp), // 增加底部邊距
+            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 40.dp), // 減少底部邊距，因為導覽列已隱藏
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(newsList) { news ->

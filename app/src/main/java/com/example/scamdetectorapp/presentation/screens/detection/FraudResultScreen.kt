@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -115,10 +116,22 @@ fun FraudResultScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = textWhite)
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(Color.White.copy(alpha = 0.05f), CircleShape)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_back_less_than),
+                        contentDescription = "返回", 
+                        tint = textWhite,
+                        modifier = Modifier.size(36.dp)
+                    )
                 }
-                Spacer(Modifier.width(8.dp))
+                
+                Spacer(Modifier.width(12.dp))
+                
                 val modeLabel = when (result.mode) {
                     DetectionMode.URL -> "網址"
                     DetectionMode.PHONE -> "電話"
@@ -129,7 +142,7 @@ fun FraudResultScreen(
 
                 Spacer(Modifier.weight(1f))
                 
-                // 新增代碼：右上角分享按鈕
+                // 右上角分享按鈕
                 IconButton(onClick = onShare) {
                     Icon(Icons.Default.Share, contentDescription = "分享", tint = textWhite)
                 }

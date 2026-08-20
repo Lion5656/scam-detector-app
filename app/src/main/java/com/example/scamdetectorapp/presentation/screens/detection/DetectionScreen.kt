@@ -1,17 +1,14 @@
 package com.example.scamdetectorapp.presentation.screens.detection
 
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -20,18 +17,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,13 +36,14 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -62,9 +56,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.scamdetectorapp.R
 import com.example.scamdetectorapp.domain.model.DetectionMode
+import com.example.scamdetectorapp.presentation.components.DetectionModeTabs
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import com.example.scamdetectorapp.presentation.viewmodel.ScanUiState
-import com.example.scamdetectorapp.presentation.screens.detection.PriceResultScreen
 
 /**
  * 定義畫面顯示的四個階段
@@ -84,15 +78,42 @@ fun GenericDetectionFlow(
         DetectionMode.TEXT -> Icons.AutoMirrored.Filled.Message
         DetectionMode.PRICE -> Icons.Default.PhotoCamera
     },
-    accentColor: Color = Color(0xFFBB86FC),
+    accentColor: Color = Color(0xFFA78BFA),
     onNavigateToGenealogy: ((String) -> Unit)? = null,
     onSwitchMode: (DetectionMode) -> Unit = {},
+    onExitFlow: () -> Unit = {}, // 新增退出回調
     viewModel: MainViewModel = viewModel(factory = MainViewModel.provideFactory(LocalContext.current.applicationContext as android.app.Application))
 ) {
+    val maxChars = when (mode) {
+        DetectionMode.TEXT -> 300
+        DetectionMode.URL -> 100
+        DetectionMode.PHONE -> 20
+        DetectionMode.PRICE -> 100 
+    }
     val stateFlow = viewModel.getState(mode)
     val uiState by stateFlow.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+
+
+    // Handle System Back Button
+    androidx.activity.compose.BackHandler(enabled = true) {
+        when {
+            uiState is ScanUiState.Success || uiState is ScanUiState.Error -> {
+                viewModel.resetState(mode)
+                viewModel.setInput(mode, "")
+            }
+            uiState is ScanUiState.Loading -> {
+                viewModel.resetState(mode)
+                viewModel.setInput(mode, "")
+            }
+            else -> {
+                viewModel.resetState(mode)
+                viewModel.setInput(mode, "")
+                onExitFlow()
+            }
+        }
+    }
 
     var step by remember(mode) {
         val initialStep = when (stateFlow.value) {
@@ -106,8 +127,15 @@ fun GenericDetectionFlow(
 
     val viewModelInput by viewModel.getInput(mode).collectAsStateWithLifecycle()
 
-    // 【關鍵修正】使用 TextFieldValue 替代 String，以支援實體鍵盤中文組合輸入
+    // 使用 TextFieldValue 替代 String，以支援實體鍵盤中文組合輸入
     var localTextValue by remember(mode) { mutableStateOf(TextFieldValue(viewModelInput)) }
+
+    // 監聽全域輸入狀態，確保 reset 時 UI 同步清空
+    LaunchedEffect(viewModelInput) {
+        if (localTextValue.text != viewModelInput) {
+            localTextValue = TextFieldValue(viewModelInput)
+        }
+    }
 
     // 當分頁切換（mode 改變）或元件銷毀時，確保收起鍵盤
     DisposableEffect(mode) {
@@ -136,9 +164,9 @@ fun GenericDetectionFlow(
     }
 
     fun reset() {
+        viewModel.resetState(mode)
         viewModel.setInput(mode, "")
         localTextValue = TextFieldValue("")
-        viewModel.resetState(mode)
         step = ScreenStep.INPUT
     }
 
@@ -154,13 +182,18 @@ fun GenericDetectionFlow(
                         desc = desc,
                         imageUri = if (viewModelInput.startsWith("uri:")) viewModelInput.removePrefix("uri:") else null,
                         onImageSelected = { uri ->
-                            viewModel.setInput(mode, "uri:$uri")
+                            if (uri.isEmpty()) viewModel.setInput(mode, "")
+                            else viewModel.setInput(mode, "uri:$uri")
                         },
                         onScan = { startScan() },
                         currentMode = mode,
                         onSwitchMode = onSwitchMode,
                         icon = icon,
-                        accentColor = accentColor
+                        accentColor = accentColor,
+                        onExit = { 
+                            reset()
+                            onExitFlow() 
+                        }
                     )
             } else {
                 InputScreen(
@@ -171,10 +204,12 @@ fun GenericDetectionFlow(
                     accentColor = accentColor,
                     value = localTextValue,
                     onValueChange = { newValue ->
-                        localTextValue = newValue
-                        // 僅在文字有變動時更新全域狀態，避免 IME 正在組字時被反向同步干擾
-                        if (newValue.text != viewModelInput) {
-                            viewModel.setInput(mode, newValue.text)
+                        // 字數攔截邏輯
+                        if (newValue.text.length <= maxChars) {
+                            localTextValue = newValue
+                            if (newValue.text != viewModelInput) {
+                                viewModel.setInput(mode, newValue.text)
+                            }
                         }
                     },
                     onScan = { if (localTextValue.text.isNotBlank()) startScan() },
@@ -185,7 +220,11 @@ fun GenericDetectionFlow(
                     },
                     isMultiLine = isMultiLine,
                     currentMode = mode,
-                    onSwitchMode = onSwitchMode
+                    onSwitchMode = onSwitchMode,
+                    onExit = { 
+                        reset()
+                        onExitFlow() 
+                    }
                 )
             }
         }
@@ -236,14 +275,27 @@ fun ErrorScreen(title: String, message: String, onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
+            .padding(horizontal = 24.dp)
     ) {
+        // 頂部間距
+        Spacer(modifier = Modifier.height(60.dp))
+
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = textWhite)
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Color.White.copy(alpha = 0.05f), CircleShape)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_back_less_than),
+                    contentDescription = "返回輸入", 
+                    tint = textWhite, 
+                    modifier = Modifier.size(36.dp)
+                )
             }
-            Spacer(Modifier.width(8.dp))
-            Text("檢測失敗", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
+            Spacer(Modifier.width(16.dp))
+            Text("檢測失敗", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = textWhite)
         }
         Spacer(Modifier.height(24.dp))
         Card(
@@ -262,16 +314,20 @@ fun ErrorScreen(title: String, message: String, onBack: () -> Unit) {
                 Text(message, color = textGrey, textAlign = TextAlign.Center)
             }
         }
-        Spacer(Modifier.weight(1f))
+        
+        Spacer(modifier = Modifier.height(60.dp)) // 增加間距將按鈕往上提
+        
         Button(
             onClick = onBack,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp),
+                .height(56.dp),
+            shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(containerColor = surfaceColor)
         ) {
-            Text("返回", color = textWhite)
+            Text("返回", color = textWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
+
     }
 }
 
@@ -286,95 +342,156 @@ fun InputScreen(
     keyboardType: KeyboardType,
     isMultiLine: Boolean,
     icon: Any = Icons.Default.Search,
-    accentColor: Color = MaterialTheme.colorScheme.primary,
+    accentColor: Color = Color(0xFFA78BFA),
     currentMode: DetectionMode = DetectionMode.URL,
-    onSwitchMode: (DetectionMode) -> Unit = {}
+    onSwitchMode: (DetectionMode) -> Unit = {},
+    onExit: () -> Unit = {}
 ) {
-    val clipboardManager = LocalClipboardManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
-    val primaryColor = MaterialTheme.colorScheme.primary
     val textWhite = MaterialTheme.colorScheme.onBackground
     val textGrey = colorResource(R.color.scam_text_grey)
-    val surfaceColor = Color(0xFF121A21)
-    val componentColor = MaterialTheme.colorScheme.surfaceVariant
+    // 面版顏色：比背景稍微亮一點點，營造軟質表面感
+    val panelColor = Color(0xFF1E2630) 
     val focusRequester = remember { FocusRequester() }
-    var showHistoryDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()) // Enable scrolling
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 頂部間距：避開系統欄並與首頁視覺一致
+        // 頂部間距
         Spacer(modifier = Modifier.height(60.dp))
+
+        // 頂部導覽列與返回鍵
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onExit,
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Color.White.copy(alpha = 0.05f), CircleShape)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_back_less_than),
+                    contentDescription = "返回", 
+                    tint = textWhite,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Text(
+                text = "開始檢測",
+                fontSize = 26.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = textWhite
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         com.example.scamdetectorapp.presentation.components.DetectionModeTabs(
             selected = currentMode,
-            onSelect = onSwitchMode
+            onSelect = onSwitchMode,
+            modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(32.dp)) // 增加與上方的間隔
+        Spacer(modifier = Modifier.height(48.dp)) // icon 與上方膠囊標籤的間距
 
-        // 直接顯示圖示
-        Box(
-            modifier = Modifier.size(64.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            when (icon) {
-                is androidx.compose.ui.graphics.vector.ImageVector -> {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = accentColor,
-                        modifier = Modifier.size(48.dp)
-                    )
-                }
-                is androidx.compose.ui.graphics.painter.Painter -> {
-                    Image(
-                        painter = icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(56.dp)
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = textWhite)
-        
-        // 移除 desc 文字顯示
-        // Spacer(modifier = Modifier.height(8.dp))
-        // Text(desc, color = textGrey, fontSize = 14.sp, textAlign = TextAlign.Center)
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Card(
-            colors = CardDefaults.cardColors(containerColor = surfaceColor),
-            shape = RoundedCornerShape(20.dp),
+        // 有機 Squircle 面版
+        Surface(
+            color = panelColor,
+            shape = RoundedCornerShape(36.dp), // 大圓角營造 Squircle 有機感
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                OutlinedTextField(
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // 將圖示整合進面版頂部
+                Box(
+                    modifier = Modifier.size(56.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when (icon) {
+                        is androidx.compose.ui.graphics.vector.ImageVector -> {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(44.dp)
+                            )
+                        }
+                        is androidx.compose.ui.graphics.painter.Painter -> {
+                            Image(
+                                painter = icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(50.dp)
+                            )
+                        }
+                        // 處理以 Int 傳入的資源 ID
+                        is Int -> {
+                            Image(
+                                painter = androidx.compose.ui.res.painterResource(icon),
+                                contentDescription = null,
+                                modifier = Modifier.size(50.dp))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = textWhite)
+                
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // 無框輸入框
+                TextField(
                     value = value,
                     onValueChange = onValueChange,
-                    placeholder = { Text(placeholder, color = colorResource(R.color.scam_text_tertiary)) },
+                    placeholder = { 
+                        Text(
+                            placeholder, 
+                            color = textGrey.copy(alpha = 0.6f),
+                            textAlign = if (isMultiLine) TextAlign.Start else TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        ) 
+                    },
+                    trailingIcon = {
+                        if (value.text.isNotEmpty()) {
+                            IconButton(onClick = { onValueChange(TextFieldValue("")) }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "清空內容",
+                                    tint = textGrey.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(if (isMultiLine) 150.dp else 60.dp)
+                        .heightIn(min = if (isMultiLine) 120.dp else 56.dp, max = if (isMultiLine) 160.dp else 56.dp)
                         .focusRequester(focusRequester),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = accentColor,
-                        unfocusedBorderColor = Color.Transparent,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent, // 移除底線
+                        unfocusedIndicatorColor = Color.Transparent,
                         focusedTextColor = textWhite,
                         unfocusedTextColor = textWhite,
-                        focusedContainerColor = componentColor,
-                        unfocusedContainerColor = componentColor,
-                        disabledContainerColor = componentColor,
-                        errorContainerColor = componentColor,
+                        cursorColor = accentColor
                     ),
-                    shape = RoundedCornerShape(12.dp),
+                    textStyle = LocalTextStyle.current.copy(
+                        textAlign = if (isMultiLine) TextAlign.Start else TextAlign.Center,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = keyboardType,
                         imeAction = if(isMultiLine) ImeAction.Default else ImeAction.Done,
@@ -392,31 +509,12 @@ fun InputScreen(
                     singleLine = !isMultiLine
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    InputChip(
-                        icon = Icons.Outlined.ContentPaste,
-                        label = "貼上",
-                        color = componentColor,
-                        textColor = textGrey,
-                        iconColor = accentColor,
-                        onClick = {
-                            clipboardManager.getText()?.text?.let { onValueChange(TextFieldValue(it)) }
-                        }
-                    )
-                    InputChip(
-                        icon = Icons.Default.History,
-                        label = "歷史紀錄",
-                        color = componentColor,
-                        textColor = textGrey,
-                        onClick = { showHistoryDialog = true }
-                    )
-                }
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
 
-        Spacer(modifier = Modifier.height(120.dp)) // 增加按鈕上方的間隔，將其推向底部位置
+        // 統一按鈕對齊位置 (下放到較低的位置)
+        Spacer(modifier = Modifier.height(120.dp)) 
 
         Button(
             onClick = onScan,
@@ -426,8 +524,8 @@ fun InputScreen(
                 .height(56.dp),
             shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(
-                containerColor = primaryColor,
-                disabledContainerColor = surfaceColor
+                containerColor = accentColor, // 使用與圖示一致的薰衣草紫
+                disabledContainerColor = panelColor
             )
         ) {
             Row(
@@ -437,50 +535,11 @@ fun InputScreen(
                 Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
                 Spacer(Modifier.width(8.dp))
                 Text("開始檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                // 補償左側 Icon + Spacer 的寬度 (24dp + 8dp = 32dp)，使文字達成視覺上的絕對置中
                 Spacer(Modifier.width(32.dp))
             }
         }
 
         Spacer(modifier = Modifier.height(140.dp))
-    }
-
-
-    if (showHistoryDialog) {
-        AlertDialog(
-            onDismissRequest = { showHistoryDialog = false },
-            containerColor = surfaceColor,
-            title = { Text("歷史紀錄", color = textWhite, fontWeight = FontWeight.Bold) },
-            text = { Text("歷史紀錄功能開發中，敬請期待。", color = textGrey) },
-            confirmButton = {
-                TextButton(onClick = { showHistoryDialog = false }) {
-                    Text("知道了", color = primaryColor)
-                }
-            }
-        )
-    }
-}
-
-@Composable
-private fun InputChip(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    color: Color,
-    textColor: Color,
-    iconColor: Color = textColor,
-    onClick: () -> Unit
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(color)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 12.dp)
-    ) {
-        Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(label, color = textColor, fontSize = 14.sp)
     }
 }
 
@@ -494,13 +553,13 @@ fun PriceInputScreen(
     currentMode: DetectionMode = DetectionMode.PRICE,
     onSwitchMode: (DetectionMode) -> Unit = {},
     icon: Any = R.drawable.ic_solid_shopping_v2,
-    accentColor: Color = Color(0xFFBB86FC)
+    accentColor: Color = Color(0xFFA78BFA),
+    onExit: () -> Unit = {}
 ) {
-    val primaryColor = Color(0xFFBB86FC)
     val textWhite = MaterialTheme.colorScheme.onBackground
     val textGrey = colorResource(R.color.scam_text_grey)
-    val surfaceColor = Color(0xFF161614)
-
+    val panelColor = Color(0xFF1E2630) 
+    var showSourceDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -517,11 +576,9 @@ fun PriceInputScreen(
         }
     }
 
-    // Camera launcher placeholder - in real app would need a File provider
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
-        // Simplified: in a real app, save bitmap to file and get URI
         if (bitmap != null) {
             onImageSelected("bitmap_placeholder")
         }
@@ -530,143 +587,170 @@ fun PriceInputScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()) // Enable scrolling
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 頂部間距：避開系統欄並與首頁視覺一致
+        // 頂部間距
         Spacer(modifier = Modifier.height(60.dp))
 
-        com.example.scamdetectorapp.presentation.components.DetectionModeTabs(
-            selected = currentMode,
-            onSelect = onSwitchMode
-        )
-
-        Spacer(modifier = Modifier.height(32.dp)) // 增加與上方的間隔
-
-        // 直接顯示圖示
-        Box(
-            modifier = Modifier.size(64.dp),
-            contentAlignment = Alignment.Center
+        // 頂部導覽列與返回鍵
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            when (icon) {
-                is androidx.compose.ui.graphics.vector.ImageVector -> {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = accentColor,
-                        modifier = Modifier.size(48.dp)
-                    )
-                }
-                is androidx.compose.ui.graphics.painter.Painter -> {
-                    Image(
-                        painter = icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(56.dp)
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = title,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = textWhite
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Image Upload Area
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 250.dp, max = 400.dp) // Flexible height instead of weight(1f)
-                .clip(RoundedCornerShape(16.dp))
-                .clickable {
-                    galleryLauncher.launch(
-                        androidx.activity.result.PickVisualMediaRequest(
-                            ActivityResultContracts.PickVisualMedia.ImageOnly
-                        )
-                    )
-                },
-            color = surfaceColor.copy(alpha = 0.1f),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Box(
+            IconButton(
+                onClick = onExit,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .then(
-                        if (imageUri == null) {
-                            Modifier.drawBehind {
-                                val stroke = Stroke(
-                                    width = 2.dp.toPx(),
-                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
-                                )
-                                drawRoundRect(
-                                    color = primaryColor,
-                                    style = stroke,
-                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx())
-                                )
-                            }
-                        } else Modifier
-                    ),
-                contentAlignment = Alignment.Center
+                    .size(56.dp)
+                    .background(Color.White.copy(alpha = 0.05f), CircleShape)
             ) {
-                if (imageUri != null) {
-                    AsyncImage(
-                        model = imageUri,
-                        contentDescription = "Preview",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit, // 使用 Fit 以免裁剪到文字內容
-                        onState = { state ->
-                            if (state is coil.compose.AsyncImagePainter.State.Error) {
-                                Log.e("Coil", "Load failed for URI: $imageUri", state.result.throwable)
-                            }
-                        }
-                    )
-                } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .background(surfaceColor, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = primaryColor, modifier = Modifier.size(32.dp))
-                        }
-                        Spacer(Modifier.height(16.dp))
-                        Text("點擊拍照或上傳圖片", color = textWhite, fontWeight = FontWeight.Bold)
-                        Text("支援 JPG / PNG / WEBP 格式", color = textGrey, fontSize = 12.sp)
+                Icon(
+                    painter = painterResource(R.drawable.ic_back_less_than),
+                    contentDescription = "返回", 
+                    tint = textWhite,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
 
-                        Spacer(Modifier.height(24.dp))
-                        Row {
-                            Button(
-                                onClick = { cameraLauncher.launch(null) },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                                border = BorderStroke(1.dp, primaryColor),
-                                contentPadding = PaddingValues(horizontal = 16.dp)
-                            ) {
-                                Icon(Icons.Default.CameraAlt, contentDescription = null, tint = primaryColor, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("拍照上傳", color = primaryColor, fontSize = 14.sp)
-                            }
-                            Spacer(Modifier.width(12.dp))
-                            Button(
-                                onClick = {
-                                    galleryLauncher.launch(
-                                        androidx.activity.result.PickVisualMediaRequest(
-                                            ActivityResultContracts.PickVisualMedia.ImageOnly
+            Text(
+                text = "開始檢測",
+                fontSize = 26.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = textWhite
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        DetectionModeTabs(
+            selected = currentMode,
+            onSelect = onSwitchMode,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        // 有機 Squircle 面版
+        Surface(
+            color = panelColor,
+            shape = RoundedCornerShape(36.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // 將圖示整合進面版頂部
+                Box(
+                    modifier = Modifier.size(56.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when (icon) {
+                        is Int -> {
+                            Image(
+                                painter = painterResource(icon),
+                                contentDescription = null,
+                                modifier = Modifier.size(50.dp)
+                            )
+                        }
+                        is ImageVector -> {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(44.dp)
+                            )
+                        }
+                        is Painter -> {
+                            Image(
+                                painter = icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(50.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = title, 
+                        fontSize = 22.sp, 
+                        fontWeight = FontWeight.Bold, 
+                        color = textWhite
+                    )
+                    if (imageUri != null) {
+                        IconButton(
+                            onClick = { onImageSelected("") },
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "清空圖片",
+                                tint = textGrey.copy(alpha = 0.8f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Image Upload Area (內嵌在面版中)
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 200.dp, max = 300.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .clickable { showSourceDialog = true },
+                    color = Color.Black.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(24.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .then(
+                                if (imageUri == null) {
+                                    Modifier.drawBehind {
+                                        val stroke = Stroke(
+                                            width = 1.5.dp.toPx(),
+                                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
                                         )
-                                    )
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                                border = BorderStroke(1.dp, primaryColor),
-                                contentPadding = PaddingValues(horizontal = 16.dp)
-                            ) {
-                                Icon(Icons.Default.Image, contentDescription = null, tint = primaryColor, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("從相簿選擇", color = primaryColor, fontSize = 14.sp)
+                                        drawRoundRect(
+                                            color = accentColor.copy(alpha = 0.3f),
+                                            style = stroke,
+                                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(24.dp.toPx())
+                                        )
+                                    }
+                                } else Modifier
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (imageUri != null) {
+                            AsyncImage(
+                                model = imageUri,
+                                contentDescription = "Preview",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    Icons.Default.CameraAlt, 
+                                    contentDescription = null, 
+                                    tint = accentColor.copy(alpha = 0.6f), 
+                                    modifier = Modifier.size(40.dp)
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                Text("點擊拍照或上傳圖片", color = textGrey, fontSize = 14.sp)
                             }
                         }
                     }
@@ -674,16 +758,8 @@ fun PriceInputScreen(
             }
         }
 
-        if (imageUri == null) {
-            Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Info, contentDescription = null, tint = textGrey, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("請確保圖片清晰，包含商品、價格、賣場資訊等內容", color = textGrey, fontSize = 12.sp)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(32.dp)) // Replace weight(1f) with fixed spacer
+        // 統一按鈕對齊位置 (下放到較低的位置)
+        Spacer(modifier = Modifier.height(80.dp))
 
         Button(
             onClick = onScan,
@@ -693,8 +769,8 @@ fun PriceInputScreen(
                 .height(56.dp),
             shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(
-                containerColor = primaryColor,
-                disabledContainerColor = surfaceColor
+                containerColor = accentColor,
+                disabledContainerColor = panelColor
             )
         ) {
             Row(
@@ -716,6 +792,83 @@ fun PriceInputScreen(
         )
 
         Spacer(modifier = Modifier.height(140.dp))
+    }
+
+    if (showSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showSourceDialog = false },
+            containerColor = panelColor,
+            shape = RoundedCornerShape(32.dp),
+            title = { 
+                Text(
+                    "選擇圖片來源", 
+                    color = textWhite, 
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 22.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                ) 
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        onClick = {
+                            showSourceDialog = false
+                            cameraLauncher.launch(null)
+                        },
+                        color = Color.White.copy(alpha = 0.05f),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = accentColor, modifier = Modifier.size(28.dp))
+                            Spacer(Modifier.width(16.dp))
+                            Text("開啟相機拍照", color = textWhite, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+
+                    Surface(
+                        onClick = {
+                            showSourceDialog = false
+                            galleryLauncher.launch(
+                                androidx.activity.result.PickVisualMediaRequest(
+                                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                                )
+                            )
+                        },
+                        color = Color.White.copy(alpha = 0.05f),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Image, contentDescription = null, tint = accentColor, modifier = Modifier.size(28.dp))
+                            Spacer(Modifier.width(16.dp))
+                            Text("從相簿挑選", color = textWhite, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(
+                    onClick = { showSourceDialog = false },
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    Text("取消", color = textGrey, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
     }
 }
 

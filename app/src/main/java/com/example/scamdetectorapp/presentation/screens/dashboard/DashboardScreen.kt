@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,9 +43,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.drawText
 
 @Composable
-fun DashboardScreen() {
+fun DashboardScreen(onBack: () -> Unit = {}) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var learningProgress by remember { mutableIntStateOf(87) }
+    val textWhite = Color.White
 
     Box(modifier = Modifier.fillMaxSize().background(com.example.scamdetectorapp.ui.theme.AppBackgroundBrush)) {
         // 背景網格
@@ -64,6 +66,39 @@ fun DashboardScreen() {
         ) {
             // 頂部間距：避開系統欄並與其他頁面風格統一
             Spacer(modifier = Modifier.height(60.dp))
+
+            // 頂部導覽列與返回鍵
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(Color.White.copy(alpha = 0.05f), CircleShape)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_back_less_than),
+                        contentDescription = "返回", 
+                        tint = textWhite,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Text(
+                    text = "風險儀表板",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = textWhite
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
