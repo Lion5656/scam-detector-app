@@ -217,6 +217,7 @@ fun GenericDetectionFlow(
                         DetectionMode.URL -> KeyboardType.Uri
                         DetectionMode.PHONE -> KeyboardType.Number
                         DetectionMode.TEXT -> KeyboardType.Text
+                        else -> KeyboardType.Text
                     },
                     isMultiLine = isMultiLine,
                     currentMode = mode,
@@ -355,191 +356,202 @@ fun InputScreen(
     val panelColor = Color(0xFF1E2630) 
     val focusRequester = remember { FocusRequester() }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // 頂部間距
-        Spacer(modifier = Modifier.height(60.dp))
-
-        // 頂部導覽列與返回鍵
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+    Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            IconButton(
-                onClick = onExit,
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(Color.White.copy(alpha = 0.05f), CircleShape)
+            // 頂部間距
+            Spacer(modifier = Modifier.height(60.dp))
+
+            // 頂部導覽列與返回鍵
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_back_less_than),
-                    contentDescription = "返回", 
-                    tint = textWhite,
-                    modifier = Modifier.size(36.dp)
+                IconButton(
+                    onClick = onExit,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(Color.White.copy(alpha = 0.05f), CircleShape)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_back_less_than),
+                        contentDescription = "返回", 
+                        tint = textWhite,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Text(
+                    text = "開始檢測",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = textWhite
                 )
             }
-            
-            Spacer(modifier = Modifier.width(16.dp))
 
-            Text(
-                text = "開始檢測",
-                fontSize = 26.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = textWhite
+            Spacer(modifier = Modifier.height(24.dp))
+
+            com.example.scamdetectorapp.presentation.components.DetectionModeTabs(
+                selected = currentMode,
+                onSelect = onSwitchMode,
+                modifier = Modifier.fillMaxWidth()
             )
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(48.dp)) // icon 與上方膠囊標籤的間距
 
-        com.example.scamdetectorapp.presentation.components.DetectionModeTabs(
-            selected = currentMode,
-            onSelect = onSwitchMode,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(48.dp)) // icon 與上方膠囊標籤的間距
-
-        // 有機 Squircle 面版
-        Surface(
-            color = panelColor,
-            shape = RoundedCornerShape(36.dp), // 大圓角營造 Squircle 有機感
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            // 有機 Squircle 面版
+            Surface(
+                color = panelColor,
+                shape = RoundedCornerShape(36.dp), // 大圓角營造 Squircle 有機感
+                modifier = Modifier.fillMaxWidth()
             ) {
-                // 將圖示整合進面版頂部
-                Box(
-                    modifier = Modifier.size(56.dp),
-                    contentAlignment = Alignment.Center
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    when (icon) {
-                        is androidx.compose.ui.graphics.vector.ImageVector -> {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                tint = accentColor,
-                                modifier = Modifier.size(44.dp)
-                            )
-                        }
-                        is androidx.compose.ui.graphics.painter.Painter -> {
-                            Image(
-                                painter = icon,
-                                contentDescription = null,
-                                modifier = Modifier.size(50.dp)
-                            )
-                        }
-                        // 處理以 Int 傳入的資源 ID
-                        is Int -> {
-                            Image(
-                                painter = androidx.compose.ui.res.painterResource(icon),
-                                contentDescription = null,
-                                modifier = Modifier.size(50.dp))
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = textWhite)
-                
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // 無框輸入框
-                TextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    placeholder = { 
-                        Text(
-                            placeholder, 
-                            color = textGrey.copy(alpha = 0.6f),
-                            textAlign = if (isMultiLine) TextAlign.Start else TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        ) 
-                    },
-                    trailingIcon = {
-                        if (value.text.isNotEmpty()) {
-                            IconButton(onClick = { onValueChange(TextFieldValue("")) }) {
+                    // 將圖示整合進面版頂部
+                    Box(
+                        modifier = Modifier.size(56.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        when (icon) {
+                            is androidx.compose.ui.graphics.vector.ImageVector -> {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "清空內容",
-                                    tint = textGrey.copy(alpha = 0.8f)
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = accentColor,
+                                    modifier = Modifier.size(44.dp)
                                 )
                             }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = if (isMultiLine) 120.dp else 56.dp, max = if (isMultiLine) 160.dp else 56.dp)
-                        .focusRequester(focusRequester),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent, // 移除底線
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = textWhite,
-                        unfocusedTextColor = textWhite,
-                        cursorColor = accentColor
-                    ),
-                    textStyle = LocalTextStyle.current.copy(
-                        textAlign = if (isMultiLine) TextAlign.Start else TextAlign.Center,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = keyboardType,
-                        imeAction = if(isMultiLine) ImeAction.Default else ImeAction.Done,
-                        autoCorrect = true
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            if (value.text.isNotBlank()) onScan()
-                            else {
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
+                            is androidx.compose.ui.graphics.painter.Painter -> {
+                                Image(
+                                    painter = icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(50.dp)
+                                )
+                            }
+                            // 處理以 Int 傳入的資源 ID
+                            is Int -> {
+                                Image(
+                                    painter = androidx.compose.ui.res.painterResource(icon),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(50.dp))
                             }
                         }
-                    ),
-                    singleLine = !isMultiLine
-                )
+                    }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = textWhite)
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // 無框輸入框
+                    TextField(
+                        value = value,
+                        onValueChange = onValueChange,
+                        placeholder = { 
+                            Text(
+                                placeholder, 
+                                color = textGrey.copy(alpha = 0.6f),
+                                textAlign = if (isMultiLine) TextAlign.Start else TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            ) 
+                        },
+                        trailingIcon = {
+                            if (value.text.isNotEmpty()) {
+                                IconButton(onClick = { onValueChange(TextFieldValue("")) }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "清空內容",
+                                        tint = textGrey.copy(alpha = 0.8f)
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = if (isMultiLine) 120.dp else 56.dp, max = if (isMultiLine) 160.dp else 56.dp)
+                            .focusRequester(focusRequester),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent, // 移除底線
+                            unfocusedIndicatorColor = Color.Transparent,
+                            focusedTextColor = textWhite,
+                            unfocusedTextColor = textWhite,
+                            cursorColor = accentColor
+                        ),
+                        textStyle = LocalTextStyle.current.copy(
+                            textAlign = if (isMultiLine) TextAlign.Start else TextAlign.Center,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = keyboardType,
+                            imeAction = if(isMultiLine) ImeAction.Default else ImeAction.Done,
+                            autoCorrect = true
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                if (value.text.isNotBlank()) onScan()
+                                else {
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                }
+                            }
+                        ),
+                        singleLine = !isMultiLine
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
+            Spacer(modifier = Modifier.height(40.dp))
         }
 
-        // 統一按鈕對齊位置 (下放到較低的位置)
-        Spacer(modifier = Modifier.height(120.dp)) 
-
-        Button(
-            onClick = onScan,
-            enabled = value.text.isNotBlank(),
+        // 底部操作按鈕區域：固定在底部
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = accentColor, // 使用與圖示一致的薰衣草紫
-                disabledContainerColor = panelColor
-            )
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp, top = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+            Button(
+                onClick = onScan,
+                enabled = value.text.isNotBlank(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = accentColor, 
+                    disabledContainerColor = panelColor
+                )
             ) {
-                Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
-                Spacer(Modifier.width(8.dp))
-                Text("開始檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Spacer(Modifier.width(32.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
+                    Spacer(Modifier.width(8.dp))
+                    Text("開始檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Spacer(Modifier.width(32.dp))
+                }
             }
+            
+            // 增加與 PriceInputScreen 對齊的間距 (補足下方提示文字的高度)
+            Spacer(modifier = Modifier.height(28.dp))
         }
-
-        Spacer(modifier = Modifier.height(140.dp))
     }
 }
 
@@ -584,214 +596,222 @@ fun PriceInputScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // 頂部間距
-        Spacer(modifier = Modifier.height(60.dp))
-
-        // 頂部導覽列與返回鍵
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+    Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            IconButton(
-                onClick = onExit,
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(Color.White.copy(alpha = 0.05f), CircleShape)
+            // 頂部間距
+            Spacer(modifier = Modifier.height(60.dp))
+
+            // 頂部導覽列與返回鍵
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_back_less_than),
-                    contentDescription = "返回", 
-                    tint = textWhite,
-                    modifier = Modifier.size(36.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Text(
-                text = "開始檢測",
-                fontSize = 26.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = textWhite
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        DetectionModeTabs(
-            selected = currentMode,
-            onSelect = onSwitchMode,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        // 有機 Squircle 面版
-        Surface(
-            color = panelColor,
-            shape = RoundedCornerShape(36.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // 將圖示整合進面版頂部
-                Box(
-                    modifier = Modifier.size(56.dp),
-                    contentAlignment = Alignment.Center
+                IconButton(
+                    onClick = onExit,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(Color.White.copy(alpha = 0.05f), CircleShape)
                 ) {
-                    when (icon) {
-                        is Int -> {
-                            Image(
-                                painter = painterResource(icon),
-                                contentDescription = null,
-                                modifier = Modifier.size(50.dp)
-                            )
-                        }
-                        is ImageVector -> {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                tint = accentColor,
-                                modifier = Modifier.size(44.dp)
-                            )
-                        }
-                        is Painter -> {
-                            Image(
-                                painter = icon,
-                                contentDescription = null,
-                                modifier = Modifier.size(50.dp)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = title, 
-                        fontSize = 22.sp, 
-                        fontWeight = FontWeight.Bold, 
-                        color = textWhite
+                    Icon(
+                        painter = painterResource(R.drawable.ic_back_less_than),
+                        contentDescription = "返回", 
+                        tint = textWhite,
+                        modifier = Modifier.size(36.dp)
                     )
-                    if (imageUri != null) {
-                        IconButton(
-                            onClick = { onImageSelected("") },
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "清空圖片",
-                                tint = textGrey.copy(alpha = 0.8f),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
                 }
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
-                // Image Upload Area (內嵌在面版中)
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 200.dp, max = 300.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .clickable { showSourceDialog = true },
-                    color = Color.Black.copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(24.dp)
+                Text(
+                    text = "開始檢測",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = textWhite
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            DetectionModeTabs(
+                selected = currentMode,
+                onSelect = onSwitchMode,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // 有機 Squircle 面版
+            Surface(
+                color = panelColor,
+                shape = RoundedCornerShape(36.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // 將圖示整合進面版頂部
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .then(
-                                if (imageUri == null) {
-                                    Modifier.drawBehind {
-                                        val stroke = Stroke(
-                                            width = 1.5.dp.toPx(),
-                                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
-                                        )
-                                        drawRoundRect(
-                                            color = accentColor.copy(alpha = 0.3f),
-                                            style = stroke,
-                                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(24.dp.toPx())
-                                        )
-                                    }
-                                } else Modifier
-                            ),
+                        modifier = Modifier.size(56.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (imageUri != null) {
-                            AsyncImage(
-                                model = imageUri,
-                                contentDescription = "Preview",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit
-                            )
-                        } else {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    Icons.Default.CameraAlt, 
-                                    contentDescription = null, 
-                                    tint = accentColor.copy(alpha = 0.6f), 
-                                    modifier = Modifier.size(40.dp)
+                        when (icon) {
+                            is Int -> {
+                                Image(
+                                    painter = painterResource(icon),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(50.dp)
                                 )
-                                Spacer(Modifier.height(12.dp))
-                                Text("點擊拍照或上傳圖片", color = textGrey, fontSize = 14.sp)
+                            }
+                            is ImageVector -> {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = accentColor,
+                                    modifier = Modifier.size(44.dp)
+                                )
+                            }
+                            is Painter -> {
+                                Image(
+                                    painter = icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(50.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = title, 
+                            fontSize = 22.sp, 
+                            fontWeight = FontWeight.Bold, 
+                            color = textWhite
+                        )
+                        if (imageUri != null) {
+                            IconButton(
+                                onClick = { onImageSelected("") },
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "清空圖片",
+                                    tint = textGrey.copy(alpha = 0.8f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Image Upload Area (內嵌在面版中)
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 200.dp, max = 300.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .clickable { showSourceDialog = true },
+                        color = Color.Black.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(
+                                    if (imageUri == null) {
+                                        Modifier.drawBehind {
+                                            val stroke = Stroke(
+                                                width = 1.5.dp.toPx(),
+                                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                                            )
+                                            drawRoundRect(
+                                                color = accentColor.copy(alpha = 0.3f),
+                                                style = stroke,
+                                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(24.dp.toPx())
+                                            )
+                                        }
+                                    } else Modifier
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (imageUri != null) {
+                                AsyncImage(
+                                    model = imageUri,
+                                    contentDescription = "Preview",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Fit
+                                )
+                            } else {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        Icons.Default.CameraAlt, 
+                                        contentDescription = null, 
+                                        tint = accentColor.copy(alpha = 0.6f), 
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                    Spacer(Modifier.height(12.dp))
+                                    Text("點擊拍照或上傳圖片", color = textGrey, fontSize = 14.sp)
+                                }
                             }
                         }
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(40.dp))
         }
 
-        // 統一按鈕對齊位置 (下放到較低的位置)
-        Spacer(modifier = Modifier.height(80.dp))
-
-        Button(
-            onClick = onScan,
-            enabled = imageUri != null,
+        // 底部操作按鈕區域：固定在底部
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = accentColor,
-                disabledContainerColor = panelColor
-            )
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp, top = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+            Button(
+                onClick = onScan,
+                enabled = imageUri != null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = accentColor,
+                    disabledContainerColor = panelColor
+                )
             ) {
-                Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
-                Spacer(Modifier.width(8.dp))
-                Text("開始檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Spacer(Modifier.width(32.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
+                    Spacer(Modifier.width(8.dp))
+                    Text("開始檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Spacer(Modifier.width(32.dp))
+                }
             }
+
+            Text(
+                "圖片分析可能需要 10~30 秒，請耐心等候",
+                color = textGrey,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
         }
-
-        Text(
-            "AI 分析可能需要 10~30 秒，請耐心等候",
-            color = textGrey,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(top = 8.dp)
-        )
-
-        Spacer(modifier = Modifier.height(140.dp))
     }
 
     if (showSourceDialog) {

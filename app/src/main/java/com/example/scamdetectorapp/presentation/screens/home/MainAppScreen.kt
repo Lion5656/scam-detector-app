@@ -154,14 +154,17 @@ fun MainAppScreen() {
 
                         "新聞" -> NewsScreen(onBack = { currentTab = "首頁" })
 
-                        "檢測紀錄" -> HistoryScreen()
+                        "檢測紀錄" -> HistoryScreen(onBack = { currentTab = "首頁" }, viewModel = viewModel)
 
                         "設定" -> SettingScreen()
                     }
                 }
 
                 // 將 CustomBottomBar 移入 Box 中並置於底部中心，達成真正的「懸浮於內容之上」
-                val hideBottomBar = activeDetectionMode != null || currentTab == "儀表板" || currentTab == "新聞"
+                val hideBottomBar = activeDetectionMode != null || 
+                                   currentTab == "儀表板" || 
+                                   currentTab == "新聞" || 
+                                   currentTab == "檢測紀錄"
                 if (!hideBottomBar) {
                     Box(
                         modifier = Modifier.align(Alignment.BottomCenter)

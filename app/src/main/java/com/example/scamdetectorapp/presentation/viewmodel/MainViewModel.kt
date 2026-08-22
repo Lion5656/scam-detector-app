@@ -10,9 +10,8 @@ import com.example.scamdetectorapp.data.repository.AntiFraudRepository
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.domain.model.ScanResult
 import com.example.scamdetectorapp.presentation.model.ScanUiModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import com.example.scamdetectorapp.data.local.HistoryEntity
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.net.SocketTimeoutException
@@ -49,6 +48,11 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
     val phoneInput = _phoneInput.asStateFlow()
     val textInput = _textInput.asStateFlow()
     val priceInput = _priceInput.asStateFlow()
+
+    // 暴露歷史紀錄 Flow 給 UI
+    val allHistory: StateFlow<List<HistoryEntity>> = repository.getAllHistory()
+        ?.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        ?: MutableStateFlow(emptyList())
 
     fun getState(mode: DetectionMode): StateFlow<ScanUiState> = when (mode) {
         DetectionMode.URL -> urlState
@@ -105,6 +109,10 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
                 onSuccess = { scanResult ->
                     val uiModel = mapToUiModel(scanResult, mode)
                     stateFlow.value = ScanUiState.Success(uiModel)
+                    
+                    // 自動儲存至本地資料庫
+                    saveToHistory(mode, input, uiModel)
+
                     if (mode == DetectionMode.PRICE) {
                         Toast.makeText(getApplication(), "商品分析傳送成功", Toast.LENGTH_SHORT).show()
                     }
@@ -119,6 +127,30 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
                     stateFlow.value = ScanUiState.Error(message, title)
                 }
             )
+        }
+    }
+
+    private fun saveToHistory(mode: DetectionMode, input: String, uiModel: ScanUiModel) {
+        viewModelScope.launch {
+            val type = when (mode) {
+                DetectionMode.URL -> "URL"
+                DetectionMode.PHONE -> "電話"
+                DetectionMode.TEXT -> "文字"
+                DetectionMode.PRICE -> "圖片"
+            }
+            // 圖片模式下只存檔名
+            val content = if (mode == DetectionMode.PRICE) {
+                input.removePrefix("uri:").substringAfterLast("/")
+            } else input
+
+            val history = HistoryEntity(
+                type = type,
+                riskLevel = uiModel.riskLevel,
+                content = content,
+                timestamp = System.currentTimeMillis(),
+                score = uiModel.score
+            )
+            repository.saveHistory(history)
         }
     }
 

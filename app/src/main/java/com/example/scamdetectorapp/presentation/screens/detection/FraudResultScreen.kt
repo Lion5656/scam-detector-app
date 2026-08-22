@@ -102,94 +102,136 @@ fun FraudResultScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            // 頂部間距：避開系統欄
-            Spacer(modifier = Modifier.height(60.dp))
-
-            // 頂部導覽列
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+        Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(Color.White.copy(alpha = 0.05f), CircleShape)
+                // 頂部間距：避開系統欄
+                Spacer(modifier = Modifier.height(60.dp))
+
+                // 頂部導覽列
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_back_less_than),
-                        contentDescription = "返回", 
-                        tint = textWhite,
-                        modifier = Modifier.size(36.dp)
-                    )
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(Color.White.copy(alpha = 0.05f), CircleShape)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_back_less_than),
+                            contentDescription = "返回", 
+                            tint = textWhite,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                    
+                    Spacer(Modifier.width(12.dp))
+                    
+                    val modeLabel = when (result.mode) {
+                        DetectionMode.URL -> "網址"
+                        DetectionMode.PHONE -> "電話"
+                        DetectionMode.TEXT -> "簡訊"
+                        DetectionMode.PRICE -> "購物"
+                    }
+                    Text("檢測結果・$modeLabel", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
+
+                    Spacer(Modifier.weight(1f))
+                    
+                    // 右上角分享按鈕
+                    IconButton(onClick = onShare) {
+                        Icon(Icons.Default.Share, contentDescription = "分享", tint = textWhite)
+                    }
                 }
-                
-                Spacer(Modifier.width(12.dp))
-                
-                val modeLabel = when (result.mode) {
-                    DetectionMode.URL -> "網址"
-                    DetectionMode.PHONE -> "電話"
-                    DetectionMode.TEXT -> "簡訊"
-                    DetectionMode.PRICE -> "購物"
+
+                Spacer(Modifier.height(24.dp))
+
+                // 風險儀表板：分數 → 說明文字 → 風險徽章 → 語意色進度條，直接置於頁面背景上
+                RiskScoreDashboard(
+                    score = result.score,
+                    caption = "風險分數",
+                    badgeText = statusText,
+                    badgeIcon = statusIcon,
+                    color = statusColor,
+                    trackColor = statusColor.copy(alpha = 0.15f),
+                    labelColor = textGrey,
+                    useGradient = !isUnknown,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
+
+                // 新增：查看族譜按鈕 (僅在有提供 callback 時顯示)
+                if (onViewGenealogy != null) {
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedButton(
+                        onClick = onViewGenealogy,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(50)
+                    ) {
+                        Icon(Icons.Default.Hub, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("查看號碼關聯族譜", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    }
                 }
-                Text("檢測結果・$modeLabel", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
 
-                Spacer(Modifier.weight(1f))
-                
-                // 右上角分享按鈕
-                IconButton(onClick = onShare) {
-                    Icon(Icons.Default.Share, contentDescription = "分享", tint = textWhite)
+                Spacer(Modifier.height(24.dp))
+
+                // Details Section
+                if (result.riskLevel != "UNKNOWN") {
+                    Text("詳細資訊", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
+                    Spacer(Modifier.height(16.dp))
+
+                    result.detailMap?.let { details ->
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            details.toList().forEach { pair ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(componentColor, RoundedCornerShape(14.dp))
+                                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(statusColor)
+                                    )
+                                    Spacer(Modifier.width(10.dp))
+                                    Text(
+                                        pair.first,
+                                        color = textGrey,
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(
+                                        pair.second.toString(),
+                                        color = textWhite,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(24.dp))
                 }
-            }
 
-            Spacer(Modifier.height(24.dp))
+                // 分析詳情列表：逐項卡片，左側判斷依據、右側嚴重度標籤，同一語意色貫穿
+                if (result.reasons.isNotEmpty()) {
+                    Text("分析詳情", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
+                    Spacer(Modifier.height(16.dp))
 
-            // 風險儀表板：分數 → 說明文字 → 風險徽章 → 語意色進度條，直接置於頁面背景上
-            RiskScoreDashboard(
-                score = result.score,
-                caption = "風險分數",
-                badgeText = statusText,
-                badgeIcon = statusIcon,
-                color = statusColor,
-                trackColor = statusColor.copy(alpha = 0.15f),
-                labelColor = textGrey,
-                useGradient = !isUnknown,
-                modifier = Modifier.padding(vertical = 16.dp)
-            )
-
-            // 新增：查看族譜按鈕 (僅在有提供 callback 時顯示)
-            if (onViewGenealogy != null) {
-                Spacer(Modifier.height(16.dp))
-                OutlinedButton(
-                    onClick = onViewGenealogy,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary),
-                    shape = RoundedCornerShape(50)
-                ) {
-                    Icon(Icons.Default.Hub, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("查看號碼關聯族譜", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // Details Section
-            if (result.riskLevel != "UNKNOWN") {
-                Text("詳細資訊", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
-                Spacer(Modifier.height(16.dp))
-
-                result.detailMap?.let { details ->
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        details.toList().forEach { pair ->
+                        result.reasons.forEach { reason ->
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
@@ -197,131 +239,127 @@ fun FraudResultScreen(
                                     .background(componentColor, RoundedCornerShape(14.dp))
                                     .padding(horizontal = 16.dp, vertical = 14.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(statusColor)
-                                )
-                                Spacer(Modifier.width(10.dp))
                                 Text(
-                                    pair.first,
-                                    color = textGrey,
-                                    fontSize = 14.sp,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Text(
-                                    pair.second.toString(),
+                                    reason,
                                     color = textWhite,
                                     fontSize = 14.sp,
+                                    lineHeight = 20.sp,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    severityLabel,
+                                    color = statusColor,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
                     }
+
+                    Spacer(Modifier.height(24.dp))
                 }
-                Spacer(Modifier.height(24.dp))
+
+                // 原始文字內容顯示：收合式次要卡片，視覺上比儀表板安靜
+                var contentExpanded by remember { mutableStateOf(false) }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(componentColor)
+                        .clickable { contentExpanded = !contentExpanded }
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("原始內容", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textWhite)
+                        Icon(
+                            if (contentExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = textGrey
+                        )
+                    }
+                    AnimatedVisibility(visible = contentExpanded) {
+                        Text(
+                            originalText,
+                            color = textGrey,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                            modifier = Modifier.padding(top = 12.dp)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(40.dp))
             }
 
-            // 分析詳情列表：逐項卡片，左側判斷依據、右側嚴重度標籤，同一語意色貫穿
-            if (result.reasons.isNotEmpty()) {
-                Text("分析詳情", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
-                Spacer(Modifier.height(16.dp))
-
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    result.reasons.forEach { reason ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
+            // 底部操作按鈕區域：固定在底部
+            Surface(
+                color = Color.Transparent, // 保持背景透明以顯示下方的 AppBackgroundBrush
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isLowRisk) {
+                    // 低風險時，僅顯示一個置中的「再測一次」主按鈕
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 32.dp, top = 8.dp)
+                    ) {
+                        Button(
+                            onClick = onBack,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(componentColor, RoundedCornerShape(14.dp))
-                                .padding(horizontal = 16.dp, vertical = 14.dp)
+                                .height(52.dp),
+                            shape = RoundedCornerShape(50),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text("再測一次", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 32.dp, top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onBack,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                            shape = RoundedCornerShape(50),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, textTertiary)
+                        ) {
+                            Text("再測一次", color = textWhite, fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = { showSheet = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                            shape = RoundedCornerShape(50),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = statusColor
+                            )
                         ) {
                             Text(
-                                reason,
-                                color = textWhite,
-                                fontSize = 14.sp,
-                                lineHeight = 20.sp,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Text(
-                                severityLabel,
-                                color = statusColor,
-                                fontSize = 13.sp,
+                                "詐騙回報",
+                                color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
                 }
-
-                Spacer(Modifier.height(24.dp))
             }
-
-            // 原始文字內容顯示：收合式次要卡片，視覺上比儀表板安靜
-            var contentExpanded by remember { mutableStateOf(false) }
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(componentColor)
-                    .clickable { contentExpanded = !contentExpanded }
-                    .padding(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("原始內容", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textWhite)
-                    Icon(
-                        if (contentExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        tint = textGrey
-                    )
-                }
-                AnimatedVisibility(visible = contentExpanded) {
-                    Text(
-                        originalText,
-                        color = textGrey,
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp,
-                        modifier = Modifier.padding(top = 12.dp)
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(32.dp))
-
-            // 底部操作按鈕：低風險時「回報詐騙」降為中性次要樣式，避免過度強調
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                OutlinedButton(
-                    onClick = onBack,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    shape = RoundedCornerShape(50),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, textTertiary)
-                ) {
-                    Text("再測一次", color = textWhite, fontWeight = FontWeight.Bold)
-                }
-
-                Button(
-                    onClick = { if (!isLowRisk) showSheet = true else onBack() },
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isLowRisk) MaterialTheme.colorScheme.primary else statusColor
-                    )
-                ) {
-                    Text(
-                        if (isLowRisk) "完成" else "詐騙回報",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-            
-            // 底部留白，避免被導覽列遮擋
-            Spacer(Modifier.height(140.dp))
         }
 
         // 回報詐騙的底部彈窗 (BottomSheet)

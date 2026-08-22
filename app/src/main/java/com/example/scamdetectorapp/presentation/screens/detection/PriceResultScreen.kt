@@ -57,162 +57,175 @@ fun PriceResultScreen(
     val statusColor = statusData.second
     val statusIcon = statusData.third
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        // 頂部間距：避開系統欄
-        Spacer(modifier = Modifier.height(60.dp))
-
-        // 頂部導覽列
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+    Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .verticalScroll(rememberScrollState())
         ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(Color.White.copy(alpha = 0.05f), CircleShape)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_back_less_than),
-                    contentDescription = "返回", 
-                    tint = textWhite,
-                    modifier = Modifier.size(36.dp)
-                )
-            }
-            
-            Spacer(Modifier.width(12.dp))
-            Text("檢測結果・購物", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
-        }
+            // 頂部間距：避開系統欄
+            Spacer(modifier = Modifier.height(60.dp))
 
-        Spacer(Modifier.height(8.dp))
-
-        // 風險儀表板：分數 → 說明文字 → 風險徽章 → 語意色進度條，直接置於頁面背景上
-        RiskScoreDashboard(
-            score = result.score,
-            caption = "風險分數",
-            badgeText = statusText,
-            badgeIcon = statusIcon,
-            color = statusColor,
-            trackColor = statusColor.copy(alpha = 0.15f),
-            labelColor = textGrey,
-            useGradient = !isUnknown,
-            modifier = Modifier.padding(vertical = 16.dp)
-        )
-
-        Spacer(Modifier.height(24.dp))
-
-        // 商品資訊標題
-        Text("商品資訊", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
-        Spacer(Modifier.height(16.dp))
-
-        // 資訊列表
-        val details = result.detailMap ?: emptyMap()
-
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            DetailPill("商品名稱", details["商品名稱"]?.toString() ?: "未知", statusColor, textWhite, textGrey, componentColor)
-            
-            // 商品狀態自定義標籤 (Badge 樣式)
-            val rawStatus = details["商品狀態"]?.toString()?.lowercase() ?: "unknown"
-            val (statusLabel, badgeBaseColor) = when (rawStatus) {
-                "new" -> "全新" to Color(0xFF2E7D32)    // 綠色表示全新
-                "used" -> "二手" to Color(0xFFFF9800)   // 橘色表示二手
-                else -> "未知" to Color(0xFF757575)      // 灰色表示未知
-            }
-            
+            // 頂部導覽列
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(componentColor, RoundedCornerShape(14.dp))
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(Color.White.copy(alpha = 0.05f), CircleShape)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_back_less_than),
+                        contentDescription = "返回", 
+                        tint = textWhite,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+                
+                Spacer(Modifier.width(12.dp))
+                Text("檢測結果・購物", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // 風險儀表板：分數 → 說明文字 → 風險徽章 → 語意色進度條，直接置於頁面背景上
+            RiskScoreDashboard(
+                score = result.score,
+                caption = "風險分數",
+                badgeText = statusText,
+                badgeIcon = statusIcon,
+                color = statusColor,
+                trackColor = statusColor.copy(alpha = 0.15f),
+                labelColor = textGrey,
+                useGradient = !isUnknown,
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            // 商品資訊標題
+            Text("商品資訊", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
+            Spacer(Modifier.height(16.dp))
+
+            // 資訊列表
+            val details = result.detailMap ?: emptyMap()
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                DetailPill("商品名稱", details["商品名稱"]?.toString() ?: "未知", statusColor, textWhite, textGrey, componentColor)
+                
+                // 商品狀態自定義標籤 (Badge 樣式)
+                val rawStatus = details["商品狀態"]?.toString()?.lowercase() ?: "unknown"
+                val (statusLabel, badgeBaseColor) = when (rawStatus) {
+                    "new" -> "全新" to Color(0xFF2E7D32)    // 綠色表示全新
+                    "used" -> "二手" to Color(0xFFFF9800)   // 橘色表示二手
+                    else -> "未知" to Color(0xFF757575)      // 灰色表示未知
+                }
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(componentColor, RoundedCornerShape(14.dp))
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(statusColor)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text("商品狀態", color = textGrey, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                    
+                    Surface(
+                        color = badgeBaseColor.copy(alpha = 0.8f), // 背景微透明
+                        shape = RoundedCornerShape(6.dp),
+                        modifier = Modifier.padding(start = 8.dp)
+                    ) {
+                        Text(
+                            text = statusLabel,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
+                // 價格資訊與位置條：保留原本的商品價格對比圖，僅套用新配色
+                val listedPriceStr = details["商品價格"]?.toString()?.filter { it.isDigit() } ?: "0"
+                val marketPriceStr = details["市場價格"]?.toString()?.filter { it.isDigit() } ?: "0"
+                val listedPrice = listedPriceStr.toDoubleOrNull() ?: 0.0
+                val marketPrice = marketPriceStr.toDoubleOrNull() ?: 0.0
+
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(statusColor)
-                )
-                Spacer(Modifier.width(10.dp))
-                Text("商品狀態", color = textGrey, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                
-                Surface(
-                    color = badgeBaseColor.copy(alpha = 0.8f), // 背景微透明
-                    shape = RoundedCornerShape(6.dp),
-                    modifier = Modifier.padding(start = 8.dp)
+                        .fillMaxWidth()
+                        .background(componentColor, RoundedCornerShape(14.dp))
+                        .padding(16.dp)
                 ) {
+                    PriceSection(
+                        listedPriceLabel = details["商品價格"]?.toString() ?: "NT$0",
+                        marketPriceLabel = details["市場價格"]?.toString() ?: "NT$0",
+                        listedPrice = listedPrice,
+                        marketPrice = marketPrice,
+                        statusColor = statusColor
+                    )
+                }
+
+                DetailPill("賣家名稱", details["賣家名稱"]?.toString() ?: "未知", statusColor, textWhite, textGrey, componentColor)
+
+                // 結果說明：收合式次要卡片同款風格，視覺上比儀表板安靜
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(componentColor)
+                        .padding(16.dp)
+                ) {
+                    Text("結果說明", color = textGrey, fontSize = 14.sp)
+                    Spacer(Modifier.height(8.dp))
                     Text(
-                        text = statusLabel,
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        details["結果說明"]?.toString() ?: "分析完成，請參考上述價格資訊。",
+                        color = textWhite,
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp
                     )
                 }
             }
 
-            // 價格資訊與位置條：保留原本的商品價格對比圖，僅套用新配色
-            val listedPriceStr = details["商品價格"]?.toString()?.filter { it.isDigit() } ?: "0"
-            val marketPriceStr = details["市場價格"]?.toString()?.filter { it.isDigit() } ?: "0"
-            val listedPrice = listedPriceStr.toDoubleOrNull() ?: 0.0
-            val marketPrice = marketPriceStr.toDoubleOrNull() ?: 0.0
+            Spacer(Modifier.height(40.dp))
+        }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(componentColor, RoundedCornerShape(14.dp))
-                    .padding(16.dp)
-            ) {
-                PriceSection(
-                    listedPriceLabel = details["商品價格"]?.toString() ?: "NT$0",
-                    marketPriceLabel = details["市場價格"]?.toString() ?: "NT$0",
-                    listedPrice = listedPrice,
-                    marketPrice = marketPrice,
-                    statusColor = statusColor
-                )
-            }
-
-            DetailPill("賣家名稱", details["賣家名稱"]?.toString() ?: "未知", statusColor, textWhite, textGrey, componentColor)
-
-            // 結果說明：收合式次要卡片同款風格，視覺上比儀表板安靜
+        // 底部操作按鈕區域：固定在底部
+        Surface(
+            color = Color.Transparent,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(componentColor)
-                    .padding(16.dp)
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp, top = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("結果說明", color = textGrey, fontSize = 14.sp)
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    details["結果說明"]?.toString() ?: "分析完成，請參考上述價格資訊。",
-                    color = textWhite,
-                    fontSize = 15.sp,
-                    lineHeight = 22.sp
-                )
+                Button(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("再次檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
             }
         }
-
-        Spacer(Modifier.height(32.dp))
-
-        // 再次檢測按鈕
-        Button(
-            onClick = onBack,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-        ) {
-            Text("再次檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-        }
-
-        // 底部留白，避免被導覽列遮擋
-        Spacer(modifier = Modifier.height(140.dp))
     }
 }
 

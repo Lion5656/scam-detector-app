@@ -12,6 +12,7 @@ import android.provider.Settings
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -19,38 +20,30 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.outlined.Message
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.DataThresholding
 import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.scamdetectorapp.R
 import com.example.scamdetectorapp.data.SettingsManager
 import com.example.scamdetectorapp.data.repository.NewsRepository
 import com.example.scamdetectorapp.data.repository.NewsType
@@ -147,8 +140,7 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
             
             ProtectionFeatureCard(
                 title = if (isProtectionEnabled) "即時防護中" else "防護未啟動",
-                desc = "通話中檢測，敏感操作防護",
-                icon = if (isProtectionEnabled) Icons.Outlined.VerifiedUser else ImageVector.vectorResource(id = R.drawable.security_24dp),
+                desc = "通話中進行防護",
                 isEnabled = isProtectionEnabled,
                 onCheckedChange = { checked ->
                     if (checked) {
@@ -199,9 +191,7 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
 
             // --- 防詐新聞預覽 ---
             NewsPreviewSection(onClick = { onNavigateTo("新聞") })
-            
-            // 底部留白 Spacer：確保懸浮導覽列不會遮擋最後一項內容
-            // 增加至 140.dp 以確保最底部的卡片能完全滑動至懸浮導覽列之上
+
             Spacer(modifier = Modifier.height(140.dp))
         }
     }
@@ -460,13 +450,13 @@ private fun StartDetectionCard(onClick: () -> Unit) {
                     color = Color.White
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.size(8.dp))
 
                 Text(
-                    text = "一鍵分析風險，點擊立即開始",
-                    fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.9f),
-                    lineHeight = 20.sp
+                    text = "檢測未知風險來源",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                 )
             }
         }
@@ -474,23 +464,119 @@ private fun StartDetectionCard(onClick: () -> Unit) {
 }
 
 @Composable
-private fun ProtectionFeatureCard(title: String, desc: String, icon: ImageVector, isEnabled: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun ProtectionFeatureCard(
+    title: String,
+    desc: String,
+    isEnabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    // 1. 顏色切換動畫
+    val targetColor = if (isEnabled) Color(0xFF00C853) else Color(0xFF2979FF)
+    val animatedColor by animateColorAsState(
+        targetValue = targetColor,
+        animationSpec = tween(400),
+        label = "color"
+    )
+
+    // 2. 定義「安全脈衝核心」圖示
+    val cardShape = RoundedCornerShape(22.dp)
+
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color(0xFF121A21),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, if (isEnabled) Color(0xFF00C853).copy(alpha = 0.3f) else Color.White.copy(alpha = 0.05f))
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(88.dp),
+        color = Color(0xFF252E3A),
+        shape = cardShape
     ) {
-        Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(48.dp).background((if (isEnabled) Color(0xFF00C853) else Color(0xFF2979FF)).copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, tint = if (isEnabled) Color(0xFF00C853) else Color(0xFF2979FF))
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 圖示區域：使用「活性守護盾」意象 (盾牌 + 即時脈衝)
+            Box(
+                modifier = Modifier.size(48.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                val activeVitalShield = remember(isEnabled, animatedColor) {
+                    ImageVector.Builder(
+                        defaultWidth = 24.dp, defaultHeight = 24.dp,
+                        viewportWidth = 24f, viewportHeight = 24f
+                    ).apply {
+                        // 1. 外盾牌：專業穩重的輪廓
+                        path(
+                            fill = if (isEnabled) SolidColor(animatedColor) else null,
+                            stroke = if (!isEnabled) SolidColor(animatedColor) else null,
+                            strokeLineWidth = 2.0f,
+                            strokeLineCap = StrokeCap.Round,
+                            strokeLineJoin = StrokeJoin.Round
+                        ) {
+                            moveTo(12f, 1f)
+                            lineTo(3f, 5f)
+                            verticalLineTo(11f)
+                            curveTo(3f, 16.55f, 6.84f, 21.74f, 12f, 23f)
+                            curveTo(17.16f, 21.74f, 21f, 16.55f, 21f, 11f)
+                            verticalLineTo(5f)
+                            lineTo(12f, 1f)
+                            close()
+                        }
+                        // 2. 中心脈衝線：象徵即時活性 (Active Pulse)
+                        path(
+                            stroke = if (isEnabled) SolidColor(Color.White) else SolidColor(animatedColor),
+                            strokeLineWidth = 1.8f,
+                            strokeLineCap = StrokeCap.Round,
+                            strokeLineJoin = StrokeJoin.Round
+                        ) {
+                            moveTo(7f, 12f)
+                            lineTo(9.5f, 12f)
+                            lineTo(11f, 8f)
+                            lineTo(13f, 16f)
+                            lineTo(14.5f, 12f)
+                            lineTo(17f, 12f)
+                        }
+                    }.build()
+                }
+
+                Icon(
+                    imageVector = activeVitalShield,
+                    contentDescription = null,
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(32.dp)
+                )
             }
-            Spacer(modifier = Modifier.width(16.dp))
+
+            Spacer(modifier = Modifier.width(14.dp))
+
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Text(desc, fontSize = 12.sp, color = Color.Gray)
+                Text(
+                    text = title,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White,
+                    letterSpacing = (-0.3).sp
+                )
+                Text(
+                    text = desc,
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.45f),
+                    fontWeight = FontWeight.Normal
+                )
             }
-            Switch(checked = isEnabled, onCheckedChange = onCheckedChange, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF00C853)))
+
+            // 三星風格 Switch
+            Switch(
+                checked = isEnabled,
+                onCheckedChange = onCheckedChange,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = animatedColor,
+                    uncheckedThumbColor = Color.White.copy(alpha = 0.5f),
+                    uncheckedTrackColor = Color.White.copy(alpha = 0.1f),
+                    uncheckedBorderColor = Color.Transparent
+                ),
+                modifier = Modifier.scale(0.8f)
+            )
         }
     }
 }

@@ -16,9 +16,22 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
 import androidx.core.net.toUri
+import com.example.scamdetectorapp.data.local.AppDatabase
+import com.example.scamdetectorapp.data.local.HistoryEntity
+import kotlinx.coroutines.flow.Flow
 
 class AntiFraudRepository(private val context: Context? = null) {
     private val api = RetrofitClient.instance
+    private val db = context?.let { AppDatabase.getDatabase(it) }
+    private val historyDao = db?.historyDao()
+
+    suspend fun saveHistory(history: HistoryEntity) {
+        historyDao?.insert(history)
+    }
+
+    fun getAllHistory(): Flow<List<HistoryEntity>>? {
+        return historyDao?.getAllHistory()
+    }
 
     suspend fun scan(mode: DetectionMode, input: String): Result<ScanResult> = withContext(Dispatchers.IO) {
         try {
