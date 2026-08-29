@@ -54,6 +54,7 @@ import com.example.scamdetectorapp.R
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import com.example.scamdetectorapp.presentation.viewmodel.ScanUiState
+import com.example.scamdetectorapp.util.LottieLoadingView
 
 /**
  * 定義畫面顯示的四個階段
@@ -591,14 +592,7 @@ fun ScanningScreen(onCancel: () -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(120.dp),
-                color = primaryColor,
-                strokeWidth = 8.dp
-            )
-            Icon(Icons.Default.Search, contentDescription = null, tint = primaryColor, modifier = Modifier.size(40.dp))
-        }
+        LottieLoadingView(size = 180.dp) // 使用新版 Lottie 載入動畫
 
         Spacer(modifier = Modifier.height(32.dp))
         Text("正在分析威脅...", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)

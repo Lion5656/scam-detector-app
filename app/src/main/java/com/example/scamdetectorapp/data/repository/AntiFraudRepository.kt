@@ -19,6 +19,14 @@ import androidx.core.net.toUri
 class AntiFraudRepository(private val context: Context? = null) {
     private val api = RetrofitClient.instance
 
+    /**
+     * 取得最新 5 筆檢測紀錄
+     */
+    fun getRecentScans(): kotlinx.coroutines.flow.Flow<List<com.example.scamdetectorapp.data.local.DetectionEntity>> {
+        val db = com.example.scamdetectorapp.data.local.AppDatabase.getDatabase(context ?: throw Exception("Context is required for DB"))
+        return db.detectionDao().getRecentScans()
+    }
+
     suspend fun scan(mode: DetectionMode, input: String): Result<ScanResult> = withContext(Dispatchers.IO) {
         // --- [關鍵修正]：強制攔截所有請求，改為本地模擬輸出 ---
         val IS_OFFLINE_TEST = true 

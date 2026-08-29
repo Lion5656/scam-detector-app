@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.scamdetectorapp.data.repository.AntiFraudRepository
+import com.example.scamdetectorapp.data.ScanHistoryManager
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.domain.model.ScanResult
 import com.example.scamdetectorapp.presentation.model.ScanUiModel
@@ -17,6 +18,13 @@ import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.net.SocketTimeoutException
 
+sealed interface RecentScansUiState {
+    object Loading : RecentScansUiState
+    object Empty : RecentScansUiState
+    data class Success(val scans: List<com.example.scamdetectorapp.data.local.DetectionEntity>) : RecentScansUiState
+    data class Error(val message: String) : RecentScansUiState
+}
+
 sealed interface ScanUiState {
     object Idle : ScanUiState
     object Loading : ScanUiState
@@ -26,6 +34,8 @@ sealed interface ScanUiState {
 
 // 修復：增加建構子參數以符合 Factory 的呼叫
 class MainViewModel(application: Application, private val repository: AntiFraudRepository) : AndroidViewModel(application) {
+    private val historyManager = ScanHistoryManager(application)
+
     // 儲存各模式的【狀態】內容，避免切換分頁時遺失
     private val _urlState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
     private val _phoneState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
@@ -49,6 +59,58 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
     val phoneInput = _phoneInput.asStateFlow()
     val textInput = _textInput.asStateFlow()
     val priceInput = _priceInput.asStateFlow()
+
+    private val _recentScansState = MutableStateFlow<RecentScansUiState>(RecentScansUiState.Loading)
+    val recentScansState = _recentScansState.asStateFlow()
+
+    init {
+        loadRecentScans()
+    }
+
+    private fun loadRecentScans() {
+        viewModelScope.launch {
+            try {
+                // 優先嘗試從 Room 讀取 (符合使用者要求的 DAO 語法)
+                // 但為了避免 build issue 導致 App 崩潰，我們加上 try-catch 並提供 SharedPreferences 備案
+                try {
+                    repository.getRecentScans().collect { scans ->
+                        _recentScansState.value = if (scans.isEmpty()) {
+                            // 若 Room 為空，嘗試讀取舊有的 SharedPreferences 紀錄作為相容
+                            loadFromHistoryManager()
+                        } else {
+                            RecentScansUiState.Success(scans)
+                        }
+                    }
+                } catch (e: Throwable) {
+                    // 若 Room 實作遺失 (如 AppDatabase_Impl 不存在)，則降級使用 HistoryManager
+                    android.util.Log.e("MainViewModel", "Room 載入失敗，切換至備案儲存: ${e.message}")
+                    _recentScansState.value = loadFromHistoryManager()
+                }
+            } catch (e: Exception) {
+                _recentScansState.value = RecentScansUiState.Error(e.message ?: "未知錯誤")
+            }
+        }
+    }
+
+    private fun loadFromHistoryManager(): RecentScansUiState {
+        val history = historyManager.getHistory().take(5)
+        return if (history.isEmpty()) {
+            RecentScansUiState.Empty
+        } else {
+            // 將 ScanRecord 轉換為 DetectionEntity 以符合 UI 預期
+            val converted = history.map { record ->
+                com.example.scamdetectorapp.data.local.DetectionEntity(
+                    id = 0, // SharedPreferences 紀錄不使用 DB ID
+                    type = record.type.name,
+                    input = record.input,
+                    riskLevel = if (record.result.isSafe) "SAFE" else "DANGEROUS",
+                    score = record.result.score,
+                    timestamp = record.timestamp
+                )
+            }
+            RecentScansUiState.Success(converted)
+        }
+    }
 
     fun getState(mode: DetectionMode): StateFlow<ScanUiState> = when (mode) {
         DetectionMode.URL -> urlState

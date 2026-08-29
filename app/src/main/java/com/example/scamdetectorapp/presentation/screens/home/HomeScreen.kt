@@ -54,13 +54,22 @@ import com.example.scamdetectorapp.data.SettingsManager
 import com.example.scamdetectorapp.data.repository.NewsRepository
 import com.example.scamdetectorapp.data.repository.NewsType
 import com.example.scamdetectorapp.service.MonitorService
+import com.airbnb.lottie.compose.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
+import com.example.scamdetectorapp.presentation.viewmodel.RecentScansUiState
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun HomeScreen(onNavigateTo: (String) -> Unit) {
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager(context) }
+    val viewModel: MainViewModel = viewModel(factory = MainViewModel.provideFactory(context.applicationContext as android.app.Application))
+    val recentScansState by viewModel.recentScansState.collectAsState()
     
     val permissionsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -187,6 +196,16 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
             FeatureCard("FB一頁式購物檢測", "貼上圖片，檢測商品價格是否正常", ImageVector.vectorResource(id = R.drawable.shopping_cart_24dp), Color(0xFF448AFF)) { onNavigateTo("購物檢測") }
 
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // --- 最近檢測 ---
+            RecentScansSection(
+                state = recentScansState,
+                onViewAllClick = { onNavigateTo("歷史紀錄") },
+                onItemClick = { recordId -> onNavigateTo("詳情/$recordId") },
+                onScanNowClick = { /* 這裡可以決定跳轉到哪個檢測頁面，預設電話 */ onNavigateTo("電話") }
+            )
+
             Spacer(modifier = Modifier.height(40.dp))
 
             // --- 防詐新聞預覽 ---
@@ -206,15 +225,18 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
     val shockwaveScale = remember { Animatable(0f) }
     val shockwaveAlpha = remember { Animatable(0f) }
 
+    // 加載新版 Lottie 機器人動畫
+    val composition by rememberLottieComposition(
+        LottieCompositionSpec.Asset("Robot assistant  Online manager.lottie")
+    )
+
     val floatAnim by infiniteTransition.animateFloat(0f, 10.dp.value, infiniteRepeatable(tween(2500, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "float")
-    val eyesGlow by infiniteTransition.animateFloat(0.4f, 1f, infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "glow")
-    val rotation by infiniteTransition.animateFloat(0f, 360f, infiniteRepeatable(tween(4000, easing = LinearEasing)), label = "rotate")
-    val scanLinePos by infiniteTransition.animateFloat(0f, 1f, infiniteRepeatable(keyframes { durationMillis = 4000; 0f at 0; 0f at 2000; 1f at 3000; 1f at 4000 }), label = "scan")
+    val rotation by infiniteTransition.animateFloat(0f, 360f, infiniteRepeatable(tween(8000, easing = LinearEasing)), label = "rotate")
 
     LaunchedEffect(Unit) {
-        val messages = listOf("SCANNING...", "SECURED", "STAY ALERT", "AI ACTIVE", "THREAT 0%")
+        val messages = listOf("AI ACTIVE", "ANALYZING", "SCANNING...", "MANAGER ON", "SECURED")
         while (true) {
-            delay((3000..7000).random().toLong())
+            delay((4000..8000).random().toLong())
             holographicText = messages.random()
             delay(2000)
             holographicText = ""
@@ -228,12 +250,10 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
                 if (!isCharging) {
                     isCharging = true
                     coroutineScope.launch {
-                        launch {
-                            shockwaveScale.snapTo(0f)
-                            shockwaveAlpha.snapTo(0.6f)
-                            launch { shockwaveScale.animateTo(2f, tween(500, easing = LinearOutSlowInEasing)) }
-                            launch { shockwaveAlpha.animateTo(0f, tween(500)) }
-                        }
+                        shockwaveScale.snapTo(0f)
+                        shockwaveAlpha.snapTo(0.6f)
+                        launch { shockwaveScale.animateTo(2.5f, tween(600, easing = LinearOutSlowInEasing)) }
+                        launch { shockwaveAlpha.animateTo(0f, tween(600)) }
                         delay(600)
                         onNavigate()
                         isCharging = false
@@ -242,26 +262,38 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
             },
         contentAlignment = Alignment.Center
     ) {
+        // 點擊時的衝擊波特效
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawCircle(color = Color(0xFF00E5FF), radius = (size.minDimension / 2) * shockwaveScale.value, alpha = shockwaveAlpha.value, style = Stroke(width = 2.dp.toPx()))
         }
+
+        // 外圍全息旋轉環
+        Canvas(modifier = Modifier.size(85.dp).graphicsLayer { rotationZ = rotation }) {
+            drawCircle(
+                brush = Brush.sweepGradient(listOf(Color.Transparent, Color(0xFF4F7CFF).copy(alpha = 0.3f), Color.Transparent)),
+                style = Stroke(width = 1.5.dp.toPx())
+            )
+        }
+
+        // 新版 Lottie 機器人助理
+        LottieAnimation(
+            composition = composition,
+            iterations = LottieConstants.IterateForever,
+            modifier = Modifier.size(75.dp),
+            contentScale = ContentScale.Fit
+        )
+
+        // 浮動的全息文字
         if (holographicText.isNotEmpty()) {
-            Text(text = holographicText, modifier = Modifier.offset(y = (-45).dp), color = Color(0xFF448AFF).copy(alpha = 0.8f), fontSize = 10.sp, fontWeight = FontWeight.Bold, style = TextStyle(shadow = Shadow(Color(0xFF2979FF), blurRadius = 8f)))
+            Text(
+                text = holographicText,
+                modifier = Modifier.offset(y = (-50).dp),
+                color = Color(0xFF4F7CFF).copy(alpha = 0.9f),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.ExtraBold,
+                style = TextStyle(shadow = Shadow(Color(0xFF4F7CFF), blurRadius = 8f))
+            )
         }
-        Canvas(modifier = Modifier.size(70.dp).graphicsLayer { rotationZ = rotation }) {
-            drawCircle(brush = Brush.sweepGradient(listOf(Color.Transparent, Color(0xFF2979FF).copy(alpha = 0.4f), Color.Transparent)), style = Stroke(width = 2.dp.toPx()))
-        }
-        Surface(modifier = Modifier.size(54.dp), color = Color(0xFF0D1520), shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(if (isCharging) 2.dp else 1.5.dp, if (isCharging) Color.White else Color(0xFF2979FF).copy(alpha = 0.7f))) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                // 移除數據掃描雷射 (雷射光線已取消)
-                Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { repeat(2) { Box(modifier = Modifier.size(12.dp, 5.dp).clip(CircleShape).background(if (isCharging) Color.White else Color(0xFF00E5FF).copy(alpha = eyesGlow))) } }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Box(modifier = Modifier.size(24.dp, 2.dp).background(Color(0xFF2979FF).copy(alpha = 0.3f)))
-                }
-            }
-        }
-        if (isCharging) { CircularProgressIndicator(modifier = Modifier.size(85.dp), color = Color.White, strokeWidth = 2.dp) }
     }
 }
 
@@ -311,6 +343,194 @@ private fun FeatureCard(title: String, desc: String, icon: ImageVector, color: C
 }
 
 @Composable
+private fun RecentScansSection(
+    state: RecentScansUiState,
+    onViewAllClick: () -> Unit,
+    onItemClick: (Long) -> Unit,
+    onScanNowClick: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "最近檢測",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = Color.White
+            )
+            TextButton(onClick = onViewAllClick) {
+                Text("查看全部", color = Color(0xFF448AFF), fontSize = 14.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        when (state) {
+            is RecentScansUiState.Loading -> {
+                Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Color(0xFF2979FF))
+                }
+            }
+            is RecentScansUiState.Empty -> {
+                EmptyRecentScans(onScanNowClick)
+            }
+            is RecentScansUiState.Success -> {
+                state.scans.forEach { scan ->
+                    RecentScanItem(scan, onItemClick)
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+            is RecentScansUiState.Error -> {
+                Text("載入失敗: ${state.message}", color = Color.Red, fontSize = 14.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentScanItem(
+    scan: com.example.scamdetectorapp.data.local.DetectionEntity,
+    onClick: (Long) -> Unit
+) {
+    val icon = when (scan.type.uppercase()) {
+        "PHONE" -> Icons.Outlined.Phone
+        "URL" -> Icons.Outlined.Public
+        "TEXT" -> Icons.AutoMirrored.Outlined.Message
+        "PRICE" -> ImageVector.vectorResource(id = R.drawable.shopping_cart_24dp)
+        else -> Icons.Outlined.HelpOutline
+    }
+
+    val riskColor = when (scan.riskLevel.uppercase()) {
+        "SAFE" -> Color(0xFF00C853)
+        "SUSPICIOUS" -> Color(0xFFFFAB40)
+        "DANGEROUS" -> Color(0xFFFF5252)
+        else -> Color.Gray
+    }
+
+    val riskText = when (scan.riskLevel.uppercase()) {
+        "SAFE" -> "安全"
+        "SUSPICIOUS" -> "注意"
+        "DANGEROUS" -> "詐騙/高風險"
+        else -> "未知"
+    }
+
+    Surface(
+        onClick = { onClick(scan.id) },
+        modifier = Modifier.fillMaxWidth(),
+        color = Color(0xFF121A21),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color(0xFF2979FF).copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = Color(0xFF2979FF), modifier = Modifier.size(20.dp))
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    scan.input,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    formatTimestamp(scan.timestamp),
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Surface(
+                color = riskColor.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(4.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, riskColor.copy(alpha = 0.5f))
+            ) {
+                Text(
+                    riskText,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = riskColor
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyRecentScans(onScanNowClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color(0xFF121A21),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                Icons.Outlined.History,
+                contentDescription = null,
+                tint = Color.Gray,
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("尚無檢測紀錄", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("立即開始您的第一次安全檢測", color = Color.Gray, fontSize = 13.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onScanNowClick,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2979FF)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("立即檢測", color = Color.White)
+            }
+        }
+    }
+}
+
+private fun formatTimestamp(timestamp: Long): String {
+    val now = System.currentTimeMillis()
+    val diff = now - timestamp
+    return when {
+        diff < 60 * 1000 -> "剛剛"
+        diff < 60 * 60 * 1000 -> "${diff / (60 * 1000)} 分鐘前"
+        diff < 24 * 60 * 60 * 1000 -> {
+            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+            val time = sdf.format(Date(timestamp))
+            if (isToday(timestamp)) "今天 $time" else "昨天 $time"
+        }
+        else -> {
+            val sdf = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault())
+            sdf.format(Date(timestamp))
+        }
+    }
+}
+
+private fun isToday(timestamp: Long): Boolean {
+    val cal1 = Calendar.getInstance()
+    val cal2 = Calendar.getInstance()
+    cal2.timeInMillis = timestamp
+    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+            cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+}
+
+@Composable
 private fun NewsPreviewSection(onClick: () -> Unit) {
     val previewNews = NewsRepository.getPreviewNews()
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -348,10 +568,9 @@ private fun PromotionBanner() {
     Card(modifier = Modifier.fillMaxWidth().height(100.dp), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF121A21))) {
         Box(modifier = Modifier.fillMaxSize().background(scamPrimary.copy(alpha = 0.1f), RoundedCornerShape(8.dp))) {
             Image(painter = painterResource(R.drawable.shield_banner), contentDescription = null, modifier = Modifier.size(120.dp).align(Alignment.CenterEnd), contentScale = ContentScale.Fit)
-            Row(modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(44.dp).background(scamPrimary.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
                     Icon(Icons.Outlined.Shield, contentDescription = null, tint = scamPrimary, modifier = Modifier.size(28.dp))
-                    Icon(Icons.Default.Bolt, contentDescription = null, tint = scamPrimary, modifier = Modifier.size(14.dp))
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
