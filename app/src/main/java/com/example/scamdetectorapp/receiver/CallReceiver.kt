@@ -8,7 +8,13 @@ import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.example.scamdetectorapp.data.SettingsManager
+import com.example.scamdetectorapp.manager.ContactManager
 import com.example.scamdetectorapp.service.MonitorService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class CallReceiver : BroadcastReceiver() {
     companion object {
@@ -17,31 +23,44 @@ class CallReceiver : BroadcastReceiver() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onReceive(context: Context, intent: Intent) {
-        Log.d(TAG, "onReceive action: ${intent.action}")
-        val settingsManager = SettingsManager(context)
-        
-        // 如果使用者關閉了「主動防護」開關，直接返回，不啟動背景監控服務
-        if (!settingsManager.isProtectionEnabled) {
-            Log.d(TAG, "Protection is disabled, ignoring broadcast.")
-            return
-        }
-
-        if(intent.action == TelephonyManager.ACTION_PHONE_STATE_CHANGED){
-            val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
-            Log.d(TAG, "Phone State changed: $state")
-
-            // 由於服務已在開啟防護時由 HomeScreen 預先啟動，
-            // 這裡只需發送 Action 或直接再次呼叫 startService (系統會分發給已運行的服務)
-            if (state == TelephonyManager.EXTRA_STATE_OFFHOOK) {
-                Log.d(TAG, "Call detected, notifying MonitorService...")
-                val serviceIntent = Intent(context, MonitorService::class.java)
-
+        if (intent.action == TelephonyManager.ACTION_PHONE_STATE_CHANGED) {
+            val pendingResult = goAsync()
+            val settingsManager = SettingsManager(context)
+            val contactManager = ContactManager(context)
+            
+            CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    context.startService(serviceIntent)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to start service from background: ${e.message}")
-                    // 如果服務沒在跑，最後的嘗試才是啟動前景
-                    context.startForegroundService(serviceIntent)
+                    if (!settingsManager.isProtectionEnabled.first()) {
+                        return@launch
+                    }
+
+                    val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
+                    if (state == TelephonyManager.EXTRA_STATE_OFFHOOK) {
+                        // 嘗試從 Intent 取得號碼
+                        var phoneNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
+                        
+                        // 如果是撥出電話或系統未提供 Extra，延遲一下查詢通話紀錄 (讓系統有時間寫入)
+                        if (phoneNumber == null) {
+                            delay(1000)
+                            phoneNumber = contactManager.getLastCallNumber()
+                        }
+
+                        Log.d(TAG, "Call detected. Captured number: $phoneNumber")
+                        
+                        val serviceIntent = Intent(context, MonitorService::class.java).apply {
+                            if (phoneNumber != null) {
+                                putExtra(MonitorService.EXTRA_PHONE_NUMBER, phoneNumber)
+                            }
+                        }
+                        
+                        try {
+                            context.startService(serviceIntent)
+                        } catch (e: Exception) {
+                            context.startForegroundService(serviceIntent)
+                        }
+                    }
+                } finally {
+                    pendingResult.finish()
                 }
             }
         }

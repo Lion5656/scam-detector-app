@@ -1,11 +1,20 @@
 package com.example.scamdetectorapp.presentation.viewmodel
 
+import android.Manifest
 import android.app.Application
+import android.app.AppOpsManager
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Process
+import android.provider.Settings
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.scamdetectorapp.data.SettingsManager
 import com.example.scamdetectorapp.data.repository.AntiFraudRepository
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.domain.model.ScanResult
@@ -23,8 +32,105 @@ sealed interface ScanUiState {
     data class Error(val message: String, val title: String = "錯誤") : ScanUiState
 }
 
-// 修復：增加建構子參數以符合 Factory 的呼叫
+// 權限狀態模型
+data class PermissionStatus(
+    val hasOverlay: Boolean = false,
+    val hasUsageStats: Boolean = false,
+    val hasPhoneState: Boolean = false,
+    val hasContacts: Boolean = false,
+    val hasCallLog: Boolean = false,
+)
+
 class MainViewModel(application: Application, private val repository: AntiFraudRepository) : AndroidViewModel(application) {
+    private val settingsManager = SettingsManager(application)
+
+    // 從 DataStore Flow 轉換為 StateFlow 以供 Compose 使用
+    val isProtectionEnabled = settingsManager.isProtectionEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), initialValue = true)
+
+    val isContactsEnabled = settingsManager.isContactsEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val isShareAutoInputEnabled = settingsManager.isShareAutoInputEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val protectedApps = settingsManager.protectedApps
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    val customWhitelist = settingsManager.customWhitelist
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    // 權限相關狀態
+    private val _permissionStatus = MutableStateFlow(PermissionStatus())
+    val permissionStatus = _permissionStatus.asStateFlow()
+
+    init {
+        updatePermissionStatus()
+    }
+
+    fun updatePermissionStatus() {
+        val context = getApplication<Application>()
+        val overlay = Settings.canDrawOverlays(context)
+        val usage = hasUsageStatPermission(context)
+        val phone = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+        val contacts = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+        val callLog = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
+        
+        _permissionStatus.value = PermissionStatus(overlay, usage, phone, contacts, callLog)
+    }
+
+    private fun hasUsageStatPermission(context: Context): Boolean {
+        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
+        } else {
+            @Suppress("DEPRECATION")
+            appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
+        }
+        return mode == AppOpsManager.MODE_ALLOWED
+    }
+
+    fun toggleProtectionEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsManager.setProtectionEnabled(enabled)
+        }
+    }
+
+    fun toggleContactsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsManager.setContactsEnabled(enabled)
+        }
+    }
+
+    fun toggleShareAutoInputEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsManager.setShareAutoInputEnabled(enabled)
+        }
+    }
+
+    fun updateProtectedApps(apps: Set<String>) {
+        viewModelScope.launch {
+            settingsManager.updateProtectedApps(apps)
+        }
+    }
+
+    fun addWhitelistNumber(number: String) {
+        viewModelScope.launch {
+            val current = customWhitelist.value.toMutableSet()
+            if (current.add(number)) {
+                settingsManager.updateCustomWhitelist(current)
+            }
+        }
+    }
+
+    fun removeWhitelistNumber(number: String) {
+        viewModelScope.launch {
+            val current = customWhitelist.value.toMutableSet()
+            if (current.remove(number)) {
+                settingsManager.updateCustomWhitelist(current)
+            }
+        }
+    }
     // 儲存各模式的【狀態】內容，避免切換分頁時遺失
     private val _urlState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
     private val _phoneState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
@@ -211,7 +317,7 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
         }
 
         return ScanUiModel(
-            isSafe = rLevel == "SAFE" || rLevel == "NODATA",
+            isSafe = (rLevel == "SAFE" || rLevel == "NODATA"),
             riskLevel = rLevel,
             score = score,
             title = title,

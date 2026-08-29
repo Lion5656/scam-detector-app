@@ -13,10 +13,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.colorResource
+import androidx.lifecycle.lifecycleScope
 import com.example.scamdetectorapp.data.SettingsManager
 import com.example.scamdetectorapp.presentation.screens.home.MainAppScreen
 import com.example.scamdetectorapp.presentation.screens.splash.SplashScreen
 import com.example.scamdetectorapp.service.MonitorService
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,12 +37,15 @@ class MainActivity : ComponentActivity() {
 
     private fun startMonitorServiceIfEnabled() {
         val settingsManager = SettingsManager(this)
-        if (settingsManager.isProtectionEnabled) {
-            val intent = Intent(this, MonitorService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
+        lifecycleScope.launch {
+            // 取得第一筆資料後判斷是否啟動
+            if (settingsManager.isProtectionEnabled.first()) {
+                val intent = Intent(this@MainActivity, MonitorService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent)
+                } else {
+                    startService(intent)
+                }
             }
         }
     }

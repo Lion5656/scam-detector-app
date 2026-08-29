@@ -417,33 +417,32 @@ fun InputScreen(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // 將圖示整合進面版頂部
                     Box(
-                        modifier = Modifier.size(56.dp),
+                        modifier = Modifier.size(80.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         when (icon) {
-                            is androidx.compose.ui.graphics.vector.ImageVector -> {
+                            is ImageVector -> {
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = null,
-                                    tint = accentColor,
-                                    modifier = Modifier.size(44.dp)
+                                    tint = Color.Unspecified, // 保持向量圖原始多色
+                                    modifier = Modifier.size(64.dp)
                                 )
                             }
-                            is androidx.compose.ui.graphics.painter.Painter -> {
+                            is Painter -> {
                                 Image(
                                     painter = icon,
                                     contentDescription = null,
-                                    modifier = Modifier.size(50.dp)
+                                    modifier = Modifier.size(64.dp)
                                 )
                             }
-                            // 處理以 Int 傳入的資源 ID
                             is Int -> {
                                 Image(
-                                    painter = androidx.compose.ui.res.painterResource(icon),
+                                    painter = painterResource(icon),
                                     contentDescription = null,
-                                    modifier = Modifier.size(50.dp))
+                                    modifier = Modifier.size(64.dp)
+                                )
                             }
                         }
                     }
@@ -657,9 +656,9 @@ fun PriceInputScreen(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // 將圖示整合進面版頂部
+                    // 顯示高彩度多色向量圖示
                     Box(
-                        modifier = Modifier.size(56.dp),
+                        modifier = Modifier.size(80.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         when (icon) {
@@ -667,22 +666,22 @@ fun PriceInputScreen(
                                 Image(
                                     painter = painterResource(icon),
                                     contentDescription = null,
-                                    modifier = Modifier.size(50.dp)
+                                    modifier = Modifier.size(64.dp)
                                 )
                             }
                             is ImageVector -> {
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = null,
-                                    tint = accentColor,
-                                    modifier = Modifier.size(44.dp)
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(64.dp)
                                 )
                             }
                             is Painter -> {
                                 Image(
                                     painter = icon,
                                     contentDescription = null,
-                                    modifier = Modifier.size(50.dp)
+                                    modifier = Modifier.size(64.dp)
                                 )
                             }
                         }

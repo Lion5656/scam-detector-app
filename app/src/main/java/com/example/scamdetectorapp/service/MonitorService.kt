@@ -18,19 +18,13 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import com.example.scamdetectorapp.manager.CallDisconnectManager
 import com.example.scamdetectorapp.manager.CallStateMonitor
+import com.example.scamdetectorapp.manager.ContactManager
 import com.example.scamdetectorapp.ui.overlay.OverlayController
 import com.example.scamdetectorapp.R
 import com.example.scamdetectorapp.data.SettingsManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 
 sealed interface MonitorState{
     data object Idle : MonitorState
@@ -44,20 +38,22 @@ class MonitorService : Service(){
         private const val TAG = "MonitorService"
         private const val CHECK_INTERVAL = 3000L
         private const val COOLDOWN_TIME = 3 * 60 * 1000L
+        
+        const val EXTRA_PHONE_NUMBER = "extra_phone_number"
     }
 
-    // 要監控的特定 APP 的 Package Name
-    private val targetAppPackages = listOf(
-        "com.esunbank",
-        "com.esunbank.oneyou",
-        "jp.naver.line.android",
-        "com.linecorp.line.android",
-        "com.facebook.orca",
-        "com.google.android.youtube",
-        "com.linepaytw.upay",
-        "tw.gov.post.mpost",
-        "com.linebank.tw"
-    )
+    // 動態讀取受監控 APP 的 Package Name
+    private var targetAppPackages = emptySet<String>()
+
+    // 自定義白名單號碼
+    private var customWhitelist = emptySet<String>()
+
+    // 當前通話號碼
+    private var currentCallNumber: String? = null
+
+    // 聯絡人管理員
+    private lateinit var contactManager: ContactManager
+    private var isContactsEnabled: Boolean = false
 
     // 畫面狀態
     private var currentState : MonitorState = MonitorState.Idle
@@ -83,19 +79,57 @@ class MonitorService : Service(){
     // 掛斷電話管理器
     private lateinit var callDisconnectManager: CallDisconnectManager
 
+    private fun updateSettings() {
+        val settingsManager = SettingsManager(this)
+        serviceScope.launch {
+            settingsManager.protectedApps.collect { apps ->
+                targetAppPackages = apps
+                Log.d(TAG, "Updated target apps: ${targetAppPackages.size}")
+            }
+        }
+        serviceScope.launch {
+            settingsManager.customWhitelist.collect { whitelist ->
+                customWhitelist = whitelist
+                Log.d(TAG, "Updated custom whitelist: ${customWhitelist.size}")
+            }
+        }
+    }
+
     // 建立服務生命週期
     override fun onCreate(){
         Log.d(TAG, "service created")
-
+        
+        // 在 onCreate 最開始立即啟動前景通知
+        startForegroundServiceNotification()
+        
+        updateSettings()
+        
+        contactManager = ContactManager(this)
         overlay = OverlayController(this)
         callDisconnectManager = CallDisconnectManager(this)
+
+        // 監控設定開關
+        val settingsManager = SettingsManager(this)
+        serviceScope.launch {
+            settingsManager.isProtectionEnabled.collect { enabled ->
+                if (!enabled) {
+                    Log.d(TAG, "Protection disabled from settings, stopping service")
+                    stopSelf()
+                }
+            }
+        }
+        serviceScope.launch {
+            settingsManager.isContactsEnabled.collect { enabled ->
+                isContactsEnabled = enabled
+                Log.d(TAG, "Contacts protection enabled: $isContactsEnabled")
+            }
+        }
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             callStateMonitor = CallStateMonitor(this)
             callStateMonitor.startListening()
 
             stateListenJob = serviceScope.launch {
-                // collectLatest 蒐集上游發射的值，新的值發射時，若上一次的操作未完成，會取消上一次的掛起操作
                 callStateMonitor.callState.collectLatest { state ->
                     Log.d(TAG, "狀態 state $state")
                     if(state == TelephonyManager.CALL_STATE_OFFHOOK){
@@ -106,26 +140,22 @@ class MonitorService : Service(){
                     }
                 }
             }
-        } else {
-            Log.w(TAG, "Device API level below S, call monitoring might not work as expected")
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "service start command received")
         
-        val settingsManager = SettingsManager(this)
-        if (!settingsManager.isProtectionEnabled) {
-            Log.d(TAG, "Protection disabled, stopping service")
-            stopSelf()
-            return START_NOT_STICKY
+        // 取得傳入的電話號碼
+        val phoneNumber = intent?.getStringExtra(EXTRA_PHONE_NUMBER)
+        if (phoneNumber != null) {
+            currentCallNumber = phoneNumber
+            Log.d(TAG, "Current call number updated: $currentCallNumber")
         }
-
-        startForegroundServiceNotification()
+        
         return START_STICKY
     }
 
-    // 終止生命週期，移除懸浮窗、停止執行緒
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onDestroy(){
         stopMonitoring()
@@ -133,7 +163,6 @@ class MonitorService : Service(){
         callStateMonitor.stopListening()
         serviceScope.cancel()
         Log.d(TAG, "service destroyed")
-
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
@@ -141,15 +170,9 @@ class MonitorService : Service(){
 
     private fun startMonitoring(){
         changeState(MonitorState.Monitoring)
-        
-        // 僅檢查權限，若無權限則不啟動 monitorJob，由 HomeScreen 負責引導授權
         if(!hasUsageStatPermission()){
             Log.w(TAG, "缺少使用量存取權限，停止監控任務")
             return
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            getForegroundAppPackageName()
         }
 
         if (monitorJob?.isActive == true) return
@@ -157,15 +180,19 @@ class MonitorService : Service(){
         monitorJob = serviceScope.launch {
             while(isActive){
                 Log.d(TAG, "Monitoring...")
+                
+                // 1. 檢查是否為信任聯絡人，如果是則不動作
+                if (checkAndTrustContact()) {
+                    delay(CHECK_INTERVAL)
+                    continue
+                }
 
+                // 2. 檢查是否開啟敏感 App
                 val isSensitive = onCallStarted()
                 if (isSensitive) {
                     if (!isCooldownActive()) {
                         changeState(MonitorState.Warning)
-                        Log.d(TAG, "檢測到敏感APP")
                         showWarning()
-                    } else {
-                        Log.d(TAG, "cooldown active")
                     }
                 }
                 delay(CHECK_INTERVAL)
@@ -179,36 +206,27 @@ class MonitorService : Service(){
     }
 
     private fun isCooldownActive(): Boolean {
-        // 如果現在距離上次警告時間「小於」冷卻時間，代表冷卻中
         return (System.currentTimeMillis() - lastWarningTime) < COOLDOWN_TIME
     }
 
     private suspend fun showWarning(){
         if(isOverlayShowing) return
-
         changeState(MonitorState.Warning)
         isOverlayShowing = true
-        // 紀錄觸發警告的時間
         lastWarningTime = System.currentTimeMillis()
-        
-        // 強制返回主畫面
         backToHome()
-        // 強制在主執行緒上執行
         withContext(Dispatchers.Main){
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 overlay.show(
                     onContinueClicked = {
                         enterCoolDown()
                         isOverlayShowing = false
-                        Log.d(TAG, "點擊繼續使用")},
+                    },
                     onEndCallClicked = {
                         callDisconnectManager.endCurrentCall()
                         isOverlayShowing = false
-                        Log.d(TAG, "點擊掛斷電話")}
+                    }
                 )
-            } else {
-                Log.w(TAG, "Overlay not supported on this API level")
-                isOverlayShowing = false
             }
         }
     }
@@ -216,48 +234,35 @@ class MonitorService : Service(){
     private fun enterCoolDown(){
         isOverlayShowing = false
         overlay.close()
-
-        Log.d(TAG, "monitor cooldown")
         changeState(MonitorState.Cooldown)
     }
 
     private fun stopMonitoring(){
         isMonitoring = false
-        // 關閉Job背景服務執行緒
         monitorJob?.cancel()
-        // 重置警告時間為 0，讓下次電話開始時能立即觸發偵測
         lastWarningTime = 0L
         changeState(MonitorState.Idle)
-        Log.d(TAG, "monitor stop")
     }
 
     private fun startForegroundServiceNotification(){
         val manager =  getSystemService(NotificationManager::class.java)
-
         val channelId = "monitor_channel"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // 註冊管道
             val channel = NotificationChannel(channelId, TAG, IMPORTANCE_LOW)
             manager.createNotificationChannel(channel)
         }
-
-        // 創建內容
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, channelId)
         } else {
             @Suppress("DEPRECATION")
             Notification.Builder(this)
         }
-        
         builder.setSmallIcon(R.drawable.outline_shield_person_24)
             .setContentTitle("防詐監控啟動")
             .setContentText("安全保護中...")
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
         }
-
-        // 執行前景服務
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(1, builder.build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } else {
@@ -272,34 +277,51 @@ class MonitorService : Service(){
         startActivity(intent)
     }
 
+    private fun checkAndTrustContact(): Boolean {
+        // 如果 Intent 沒帶號碼，嘗試從通話紀錄抓最後一筆
+        if (currentCallNumber == null) {
+            currentCallNumber = contactManager.getLastCallNumber()
+            Log.d(TAG, "Attempted to recover number from CallLog: $currentCallNumber")
+        }
+
+        val number = currentCallNumber ?: return false
+        
+        // 1. 檢查自定義白名單 (需比對純數字)
+        val rawNumber = number.filter { it.isDigit() }
+        val isWhitelisted = customWhitelist.any { it.filter { digit -> digit.isDigit() } == rawNumber }
+        
+        if (isWhitelisted) {
+            Log.d(TAG, "Call number $number is in custom whitelist, skipping monitoring")
+            return true
+        }
+
+        // 2. 檢查通訊錄 (如果開啟)
+        if (isContactsEnabled && contactManager.isNumberInContacts(number)) {
+            Log.d(TAG, "Call number $number is in contacts, skipping monitoring")
+            return true
+        }
+        
+        return false
+    }
+
     fun onCallStarted() : Boolean{
         // 啟動監控前景App
         val currentApp = getForegroundAppPackageName()
-
-        if (currentApp != null && targetAppPackages.contains(currentApp)) {
-            return true
-        }
-        return false
+        return currentApp != null && targetAppPackages.contains(currentApp)
     }
 
     fun getForegroundAppPackageName() : String?{
         val usageStatsManager = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
         val endTime = System.currentTimeMillis()
-        val startTime = endTime - 30 * 1000 // 查詢過去 30 秒
-
+        val startTime = endTime - 30 * 1000
         val usageEvents = usageStatsManager.queryEvents(startTime, endTime)
         val event = UsageEvents.Event()
         var lastResumedApp: String? = null
-
         while(usageEvents.hasNextEvent()){
             usageEvents.getNextEvent(event)
             if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED){
                 lastResumedApp = event.packageName
             }
-        }
-
-        if (lastResumedApp != null) {
-            Log.d(TAG, "偵測到目前前景 APP: $lastResumedApp")
         }
         return lastResumedApp
     }
@@ -311,8 +333,6 @@ class MonitorService : Service(){
             Process.myUid(),
             packageName
         )
-        
-        Log.d(TAG, "UsageStats mode: $mode")
         return mode == AppOpsManager.MODE_ALLOWED
     }
 }

@@ -23,8 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DataThresholding
 import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,18 +42,24 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import com.example.scamdetectorapp.data.SettingsManager
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.scamdetectorapp.data.repository.NewsRepository
 import com.example.scamdetectorapp.data.repository.NewsType
+import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import com.example.scamdetectorapp.service.MonitorService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun HomeScreen(onNavigateTo: (String) -> Unit) {
+fun HomeScreen(
+    onNavigateTo: (String) -> Unit,
+    viewModel: MainViewModel = viewModel(factory = MainViewModel.provideFactory(LocalContext.current.applicationContext as android.app.Application))
+) {
     val context = LocalContext.current
-    val settingsManager = remember { SettingsManager(context) }
     val scope = rememberCoroutineScope()
+    
+    val isProtectionEnabled by viewModel.isProtectionEnabled.collectAsStateWithLifecycle()
     
     val permissionsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -136,8 +140,6 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            var isProtectionEnabled by remember { mutableStateOf(settingsManager.isProtectionEnabled) }
-            
             ProtectionFeatureCard(
                 title = if (isProtectionEnabled) "即時防護中" else "防護未啟動",
                 desc = "通話中進行防護",
@@ -160,8 +162,8 @@ fun HomeScreen(onNavigateTo: (String) -> Unit) {
                             handleSpecialPermissions(context)
                         }
                     }
-                    isProtectionEnabled = checked
-                    settingsManager.isProtectionEnabled = checked
+                    viewModel.toggleProtectionEnabled(checked)
+                    
                     val intent = Intent(context, MonitorService::class.java)
                     if (checked) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)

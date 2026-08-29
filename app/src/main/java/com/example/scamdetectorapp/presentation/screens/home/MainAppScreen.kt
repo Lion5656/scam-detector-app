@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -64,25 +66,28 @@ fun MainAppScreen() {
                     when (currentTab) {
                         "首頁" -> {
                             if (activeDetectionMode == null) {
-                                HomeScreen(onNavigateTo = { dest ->
-                                    // 判斷是進入檢測流程還是跳轉至其他頁面
-                                    when (dest) {
-                                        "網址", "電話", "簡訊", "購物檢測" -> {
-                                            viewModel.resetAllStates()
-                                            activeDetectionMode = when (dest) {
-                                                "網址" -> DetectionMode.URL
-                                                "電話" -> DetectionMode.PHONE
-                                                "簡訊" -> DetectionMode.TEXT
-                                                "購物檢測" -> DetectionMode.PRICE
-                                                else -> null
+                                HomeScreen(
+                                    onNavigateTo = { dest ->
+                                        // 判斷是進入檢測流程還是跳轉至其他頁面
+                                        when (dest) {
+                                            "網址", "電話", "簡訊", "購物檢測" -> {
+                                                viewModel.resetAllStates()
+                                                activeDetectionMode = when (dest) {
+                                                    "網址" -> DetectionMode.URL
+                                                    "電話" -> DetectionMode.PHONE
+                                                    "簡訊" -> DetectionMode.TEXT
+                                                    "購物檢測" -> DetectionMode.PRICE
+                                                    else -> null
+                                                }
+                                            }
+                                            else -> {
+                                                // 跳轉至 儀表板 或 新聞 等頁面
+                                                currentTab = dest
                                             }
                                         }
-                                        else -> {
-                                            // 跳轉至 儀表板 或 新聞 等頁面
-                                            currentTab = dest
-                                        }
-                                    }
-                                })
+                                    },
+                                    viewModel = viewModel
+                                )
                             } else {
                                 // 顯示檢測流程
                                 when (val mode = activeDetectionMode!!) {
@@ -92,8 +97,8 @@ fun MainAppScreen() {
                                             title = "檢測詐騙網址",
                                             placeholder = "貼上網址，例如 https://...",
                                             desc = "",
-                                            icon = ImageVector.vectorResource(R.drawable.ic_solid_url_v3),
-                                            accentColor = Color(0xFFA78BFA),
+                                            icon = com.example.scamdetectorapp.presentation.components.VibrantIcons.WebDetection,
+                                            accentColor = Color(0xFF4361EE),
                                             onSwitchMode = { activeDetectionMode = it },
                                             onExitFlow = { 
                                                 viewModel.resetState(mode)
@@ -108,8 +113,8 @@ fun MainAppScreen() {
                                             title = "檢測詐騙電話",
                                             placeholder = "輸入電話號碼 (如 0912...)",
                                             desc = "",
-                                            icon = ImageVector.vectorResource(R.drawable.ic_solid_phone),
-                                            accentColor = Color(0xFFA78BFA),
+                                            icon = com.example.scamdetectorapp.presentation.components.VibrantIcons.PhoneDetection,
+                                            accentColor = Color(0xFF7209B7),
                                             onNavigateToGenealogy = { genealogyPhoneNumber = it },
                                             onSwitchMode = { activeDetectionMode = it },
                                             onExitFlow = { 
@@ -125,8 +130,8 @@ fun MainAppScreen() {
                                             title = "檢測詐騙簡訊",
                                             placeholder = "輸入簡訊文字內容...",
                                             desc = "",
-                                            icon = ImageVector.vectorResource(R.drawable.ic_solid_message),
-                                            accentColor = Color(0xFFA78BFA),
+                                            icon = com.example.scamdetectorapp.presentation.components.VibrantIcons.SmsDetection,
+                                            accentColor = Color(0xFF2EC4B6),
                                             isMultiLine = true,
                                             onSwitchMode = { activeDetectionMode = it },
                                             onExitFlow = { activeDetectionMode = null },
@@ -139,8 +144,8 @@ fun MainAppScreen() {
                                             title = "FB 一頁式購物檢測",
                                             placeholder = "",
                                             desc = "",
-                                            icon = ImageVector.vectorResource(R.drawable.ic_solid_shopping_v2),
-                                            accentColor = Color(0xFFA78BFA),
+                                            icon = com.example.scamdetectorapp.presentation.components.VibrantIcons.PriceDetection,
+                                            accentColor = Color(0xFFFB8500),
                                             onSwitchMode = { activeDetectionMode = it },
                                             onExitFlow = { activeDetectionMode = null },
                                             viewModel = viewModel
@@ -156,7 +161,7 @@ fun MainAppScreen() {
 
                         "檢測紀錄" -> HistoryScreen(onBack = { currentTab = "首頁" }, viewModel = viewModel)
 
-                        "設定" -> SettingScreen()
+                        "設定" -> SettingScreen(onBack = { currentTab = "首頁" }, viewModel = viewModel)
                     }
                 }
 
@@ -164,7 +169,8 @@ fun MainAppScreen() {
                 val hideBottomBar = activeDetectionMode != null || 
                                    currentTab == "儀表板" || 
                                    currentTab == "新聞" || 
-                                   currentTab == "檢測紀錄"
+                                   currentTab == "檢測紀錄" ||
+                                   currentTab == "設定"
                 if (!hideBottomBar) {
                     Box(
                         modifier = Modifier.align(Alignment.BottomCenter)
