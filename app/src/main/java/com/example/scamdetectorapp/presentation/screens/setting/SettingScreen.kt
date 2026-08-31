@@ -3,6 +3,8 @@ package com.example.scamdetectorapp.presentation.screens.setting
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,8 +36,10 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.scamdetectorapp.manager.PermissionStatus
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
-import com.example.scamdetectorapp.presentation.viewmodel.PermissionStatus
+import com.example.scamdetectorapp.ui.theme.*
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,7 +47,6 @@ fun SettingScreen(
     onBack: () -> Unit,
     viewModel: MainViewModel = viewModel(factory = MainViewModel.provideFactory(LocalContext.current.applicationContext as android.app.Application))
 ) {
-    val context = LocalContext.current
     
     // 從 ViewModel 取得狀態
     val isContactsEnabled by viewModel.isContactsEnabled.collectAsStateWithLifecycle()
@@ -51,19 +54,42 @@ fun SettingScreen(
     val protectedApps by viewModel.protectedApps.collectAsStateWithLifecycle()
     val customWhitelist by viewModel.customWhitelist.collectAsStateWithLifecycle()
     val permissionStatus by viewModel.permissionStatus.collectAsStateWithLifecycle()
+    val highlightPermissionCenter by viewModel.highlightPermissionCenter.collectAsStateWithLifecycle()
+
+    val isCorePermissionsGranted = viewModel.hasDisplayPermissions()
+
+    val isGuiding = highlightPermissionCenter && !isCorePermissionsGranted
 
     // 控制 Dialog 顯示
     var showAppManagement by remember { mutableStateOf(false) }
     var showWhitelist by remember { mutableStateOf(false) }
     var showPermissionCenter by remember { mutableStateOf(false) }
 
-    // 每當回到此頁面或對話框關閉時更新權限狀態
-    LaunchedEffect(Unit) {
-        viewModel.updatePermissionStatus()
+    // 自動開啟權限中心並監控權限狀態
+    LaunchedEffect(highlightPermissionCenter, isCorePermissionsGranted) {
+        if (highlightPermissionCenter && !isCorePermissionsGranted) {
+            delay(500)
+            showPermissionCenter = true
+        } else if (isCorePermissionsGranted && highlightPermissionCenter) {
+            // 一旦權限全開，就重置 ViewModel 狀態，關閉亮點
+            viewModel.setHighlightPermission(false)
+        }
     }
 
-    val accentIndigo = Color(0xFF4F46E5) // Indigo
-    val securityBlue1 = Color(0xFF4361EE) // Royal Blue
+    // 當從系統設定回來時自動刷新狀態
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.updatePermissionStatus()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val accentIndigo = IndigoBlue 
+    val securityBlue1 = SystemBlue 
     val securityBlue2 = Color(0xFF4895EF) // Cornflower Blue
     val securityBlue3 = Color(0xFF4CC9F0) // Sky Blue
     val featuresOrange = Color(0xFFFB8500)
@@ -164,7 +190,7 @@ fun SettingScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // --- 功能操作群組 ---
-                SettingHeader("功能操作", Color.White)
+                SettingHeader("快捷操作", Color.White)
                 SettingsGroupCard {
                     SettingSwitchItemContent(
                         title = "分享後快速檢測",
@@ -181,6 +207,7 @@ fun SettingScreen(
 
                 // --- 系統權限群組 ---
                 SettingHeader("系統權限", Color.White)
+                
                 SettingsGroupCard {
                     SettingClickableItemContent(
                         title = "權限狀態中心",
@@ -230,6 +257,7 @@ fun SettingScreen(
     if (showPermissionCenter) {
         PermissionCenterDialog(
             status = permissionStatus,
+            isGuiding = isGuiding,
             onUpdateStatus = { viewModel.updatePermissionStatus() },
             onDismiss = { showPermissionCenter = false }
         )
@@ -237,11 +265,15 @@ fun SettingScreen(
 }
 
 @Composable
-fun SettingsGroupCard(content: @Composable ColumnScope.() -> Unit) {
+fun SettingsGroupCard(
+    modifier: Modifier = Modifier,
+    containerColor: Color = Color.White.copy(alpha = 0.08f),
+    content: @Composable ColumnScope.() -> Unit
+) {
     Surface(
-        color = Color.White.copy(alpha = 0.08f),
+        color = containerColor,
         shape = RoundedCornerShape(24.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(vertical = 4.dp),
@@ -437,7 +469,7 @@ fun AppManagementDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 24.dp),
-            color = Color(0xFF121A21),
+            color = SurfaceDark,
             shape = RoundedCornerShape(28.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
@@ -446,7 +478,7 @@ fun AppManagementDialog(
                     onValueChange = { searchQuery = it },
                     placeholder = { Text("搜尋", fontWeight = FontWeight.SemiBold, color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth(),
-                    textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                    textStyle = TextStyle(color = Color.White),
                     singleLine = true,
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
                     trailingIcon = if (searchQuery.isNotEmpty()) {
@@ -461,7 +493,7 @@ fun AppManagementDialog(
                         unfocusedContainerColor = Color.White.copy(alpha = 0.1f),
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        cursorColor = Color(0xFF4F46E5)
+                        cursorColor = IndigoBlue
                     ),
                     shape = CircleShape
                 )
@@ -518,7 +550,7 @@ fun AppManagementDialog(
                                         checked = isChecked,
                                         onCheckedChange = null,
                                         colors = CheckboxDefaults.colors(
-                                            checkedColor = Color(0xFF4F46E5)
+                                            checkedColor = IndigoBlue
                                         )
                                     )
                                 }
@@ -584,13 +616,13 @@ fun WhitelistDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 24.dp),
-            color = Color(0xFF121A21),
+            color = SurfaceDark,
             shape = RoundedCornerShape(28.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 TextField(
                     value = newNumber,
-                    onValueChange = { newNumber = formatNumber(it) },
+                    onValueChange = { newNumber = it },
                     placeholder = { Text("輸入電話號碼", color = Color.Gray, fontWeight = FontWeight.SemiBold) },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -604,7 +636,7 @@ fun WhitelistDialog(
                                 newNumber = ""
                             }
                         }) {
-                            Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF4F46E5))
+                            Icon(Icons.Default.Add, contentDescription = null, tint = IndigoBlue)
                         }
                     },
                     colors = TextFieldDefaults.colors(
@@ -612,7 +644,7 @@ fun WhitelistDialog(
                         unfocusedContainerColor = Color.White.copy(alpha = 0.1f),
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        cursorColor = Color(0xFF4F46E5)
+                        cursorColor = IndigoBlue
                     ),
                     shape = CircleShape
                 )
@@ -648,7 +680,7 @@ fun WhitelistDialog(
                                     )
                                     Spacer(Modifier.width(12.dp))
                                     Text(
-                                        text = formatNumber(number),
+                                        text = number,
                                         color = Color.White,
                                         modifier = Modifier.weight(1f),
                                         style = MaterialTheme.typography.bodyLarge.copy(
@@ -693,6 +725,7 @@ fun WhitelistDialog(
 @Composable
 fun PermissionCenterDialog(
     status: PermissionStatus,
+    isGuiding: Boolean = false,
     onUpdateStatus: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -703,7 +736,7 @@ fun PermissionCenterDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 24.dp),
-            color = Color(0xFF121A21),
+            color = SurfaceDark,
             shape = RoundedCornerShape(28.dp)
         ) {
             Column(
@@ -714,6 +747,7 @@ fun PermissionCenterDialog(
                     title = "懸浮窗權限",
                     desc = "用於通話中顯示警告視窗",
                     isGranted = status.hasOverlay,
+                    isHighlighted = isGuiding && !status.hasOverlay,
                     onClick = {
                         val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
                         context.startActivity(intent)
@@ -723,6 +757,7 @@ fun PermissionCenterDialog(
                     title = "使用量存取權限",
                     desc = "用於偵測目前開啟的 App",
                     isGranted = status.hasUsageStats,
+                    isHighlighted = isGuiding && !status.hasUsageStats,
                     onClick = {
                         val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
                         context.startActivity(intent)
@@ -732,6 +767,7 @@ fun PermissionCenterDialog(
                     title = "通話狀態權限",
                     desc = "用於偵測通話狀態",
                     isGranted = status.hasPhoneState,
+                    isHighlighted = isGuiding && !status.hasPhoneState,
                     onClick = {
                         val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
                         context.startActivity(intent)
@@ -740,7 +776,7 @@ fun PermissionCenterDialog(
                 PermissionItem(
                     title = "通話紀錄權限",
                     desc = "用於通話中辨識來電號碼",
-                    isGranted = status.hasCallLog,
+                    isGranted = status.hasCallLogs,
                     onClick = {
                         val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
                         context.startActivity(intent)
@@ -761,9 +797,26 @@ fun PermissionCenterDialog(
 }
 
 @Composable
-fun PermissionItem(title: String, desc: String, isGranted: Boolean, onClick: () -> Unit) {
+fun PermissionItem(
+    title: String, 
+    desc: String, 
+    isGranted: Boolean, 
+    isHighlighted: Boolean = false,
+    onClick: () -> Unit
+) {
+    val highlightAlpha = remember { Animatable(0.05f) }
+
+    // 當引導標記觸發時，執行一次性的「點擊反白動畫」
+    LaunchedEffect(isHighlighted) {
+        if (isHighlighted) {
+            // 快速閃爍並淡出，模擬點擊感
+            highlightAlpha.animateTo(0.35f, tween(500))
+            highlightAlpha.animateTo(0.05f, tween(1400))
+        }
+    }
+
     Surface(
-        color = Color.White.copy(alpha = 0.05f),
+        color = Color.White.copy(alpha = highlightAlpha.value),
         shape = RoundedCornerShape(12.dp),
         onClick = onClick
     ) {

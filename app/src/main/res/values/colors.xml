@@ -22,19 +22,19 @@
       <color name="scam_orange">#F5A623</color>
       <color name="scam_neutral_gray">#808080</color>
 
-      <!-- 偵測模式識別色：輸入頁圖示徽章用，與結果頁的風險語意色區隔開 -->
+      <!-- 偵測模式識別色 -->
       <color name="scam_accent_url">#2979FF</color>
       <color name="scam_accent_phone">#00E5FF</color>
       <color name="scam_accent_sms">#D500F9</color>
       <color name="scam_accent_price">#FFD600</color>
 
-      <!-- 修改此處：確保外圈背景是深藍色，消除白邊 -->
+      <!-- 懸浮窗與特殊元件 -->
       <color name="shield_icon_background">#0B1221</color>
+      <color name="scam_panel">#1E2630</color>
+      <color name="scam_vibrant_red">#FF3B30</color>
 
-      <!-- 現代化懸浮窗配色-->
-      <color name="overlay_card_bg">#FDF2E9</color>
-      <color name="overlay_text_primary">#1D1B1A</color>
-      <color name="overlay_text_secondary">#494644</color>
-      <color name="overlay_icon_gold">#8B633B</color>
-      <color name="overlay_button_red">#D63D2B</color>
+      <color name="overlay_scrim">#B3000000</color>
+      <color name="overlay_instruction_bg">#15FFFFFF</color>
+      <color name="overlay_button_secondary_bg">#25FFFFFF</color>
+      <color name="overlay_button_secondary_text">#B0FFFFFF</color>
 </resources>

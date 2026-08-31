@@ -65,8 +65,9 @@ class OverlayController(private val context : Context) {
         // 30秒倒數冷卻按鈕
         val btnContinue = overlayView?.findViewById<Button>(R.id.countdown)
         btnContinue?.isEnabled = false
-        btnContinue?.backgroundTintList = ColorStateList.valueOf(Color.argb(100, 128, 128, 128))
-        btnContinue?.setTextColor(Color.GRAY)
+        // 倒數中狀態：更暗的背景與文字
+        btnContinue?.backgroundTintList = ColorStateList.valueOf(context.getColor(R.color.overlay_instruction_bg))
+        btnContinue?.setTextColor(context.getColor(R.color.scam_text_tertiary))
 
         countDownTimer = object : CountDownTimer(30000, 1000){
             override fun onTick(millisUntilNotFinished: Long) {
@@ -75,8 +76,9 @@ class OverlayController(private val context : Context) {
             }
 
             override fun onFinish() {
-                btnContinue?.backgroundTintList = ColorStateList.valueOf(Color.WHITE)
-                btnContinue?.setTextColor(context.getColor(R.color.overlay_text_secondary))
+                // 結束後狀態：恢復弱對比高亮
+                btnContinue?.backgroundTintList = ColorStateList.valueOf(context.getColor(R.color.overlay_button_secondary_bg))
+                btnContinue?.setTextColor(context.getColor(R.color.white))
                 btnContinue?.isEnabled = true
                 btnContinue?.text = "仍要繼續"
                 btnContinue?.setOnClickListener {

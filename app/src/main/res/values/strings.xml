@@ -1,4 +1,10 @@
 <resources>
     <string name="app_name">ScamDetectorApp</string>
     <string name="btn_end_call">結束通話</string>
+    <string name="overlay_warning_title">通話提醒</string>
+    <string name="overlay_warning_desc">檢測到異常操作，此號碼不在您的常用聯絡號碼。為了隱私安全，建議立即掛斷通話。</string>
+    <string name="overlay_instruction_1">不要輕信對方宣稱的身分</string>
+    <string name="overlay_instruction_2">不要遵從電話中的任何指示</string>
+    <string name="overlay_instruction_3">不要分享驗證碼或轉帳內容</string>
+    <string name="btn_end_call_now">掛斷通話</string>
 </resources>

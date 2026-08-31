@@ -1,6 +1,6 @@
 package com.example.scamdetectorapp.service
 
-import android.app.AppOpsManager
+
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,7 +11,6 @@ import android.app.usage.UsageStatsManager
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
-import android.os.Process
 import android.os.IBinder
 import android.telephony.TelephonyManager
 import android.util.Log
@@ -22,9 +21,9 @@ import com.example.scamdetectorapp.manager.ContactManager
 import com.example.scamdetectorapp.ui.overlay.OverlayController
 import com.example.scamdetectorapp.R
 import com.example.scamdetectorapp.data.SettingsManager
+import com.example.scamdetectorapp.manager.PermissionManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
 
 sealed interface MonitorState{
     data object Idle : MonitorState
@@ -38,9 +37,9 @@ class MonitorService : Service(){
         private const val TAG = "MonitorService"
         private const val CHECK_INTERVAL = 3000L
         private const val COOLDOWN_TIME = 3 * 60 * 1000L
-        
         const val EXTRA_PHONE_NUMBER = "extra_phone_number"
     }
+
 
     // 動態讀取受監控 APP 的 Package Name
     private var targetAppPackages = emptySet<String>()
@@ -79,6 +78,8 @@ class MonitorService : Service(){
     // 掛斷電話管理器
     private lateinit var callDisconnectManager: CallDisconnectManager
 
+    private lateinit var permissionManager: PermissionManager
+
     private fun updateSettings() {
         val settingsManager = SettingsManager(this)
         serviceScope.launch {
@@ -107,6 +108,7 @@ class MonitorService : Service(){
         contactManager = ContactManager(this)
         overlay = OverlayController(this)
         callDisconnectManager = CallDisconnectManager(this)
+        permissionManager = PermissionManager(this)
 
         // 監控設定開關
         val settingsManager = SettingsManager(this)
@@ -170,8 +172,15 @@ class MonitorService : Service(){
 
     private fun startMonitoring(){
         changeState(MonitorState.Monitoring)
-        if(!hasUsageStatPermission()){
-            Log.w(TAG, "缺少使用量存取權限，停止監控任務")
+        
+        // 啟動前先同步一次權限狀態
+        permissionManager.updatePermissionStatus()
+        
+        if(!permissionManager.hasDisplayPermissions()){
+            Log.w(TAG, "缺少核心權限，關閉主動防護")
+            serviceScope.launch {
+                SettingsManager(this@MonitorService).setProtectionEnabled(false)
+            }
             return
         }
 
@@ -180,14 +189,34 @@ class MonitorService : Service(){
         monitorJob = serviceScope.launch {
             while(isActive){
                 Log.d(TAG, "Monitoring...")
-                
+
+                // 1. 每輪只呼叫一次更新，並拿到最新的狀態物件
+                permissionManager.updatePermissionStatus()
+
+                // 2. 檢查核心權限 (Display)
+                if (!permissionManager.hasDisplayPermissions()) {
+                    Log.w(TAG, "核心權限於監控中遺失，自動關閉防護")
+                    SettingsManager(this@MonitorService).setProtectionEnabled(false)
+                    break
+                }
+
+                if (!permissionManager.hasContactsPermission()){
+                    delay(CHECK_INTERVAL)
+                    continue
+                }
+
                 // 1. 檢查是否為信任聯絡人，如果是則不動作
                 if (checkAndTrustContact()) {
                     delay(CHECK_INTERVAL)
                     continue
                 }
 
-                // 2. 檢查是否開啟敏感 App
+                if (!permissionManager.hasCallLogsPermission()){
+                    delay(CHECK_INTERVAL)
+                    continue
+                }
+
+                // 2. 檢查是否為敏感 App
                 val isSensitive = onCallStarted()
                 if (isSensitive) {
                     if (!isCooldownActive()) {
@@ -257,7 +286,7 @@ class MonitorService : Service(){
             @Suppress("DEPRECATION")
             Notification.Builder(this)
         }
-        builder.setSmallIcon(R.drawable.outline_shield_person_24)
+        builder.setSmallIcon(R.drawable.guard__robot)
             .setContentTitle("防詐監控啟動")
             .setContentText("安全保護中...")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -326,13 +355,5 @@ class MonitorService : Service(){
         return lastResumedApp
     }
 
-    fun hasUsageStatPermission(): Boolean {
-        val appOps = getSystemService(APP_OPS_SERVICE) as AppOpsManager
-        val mode = @Suppress("DEPRECATION") appOps.checkOpNoThrow(
-            AppOpsManager.OPSTR_GET_USAGE_STATS,
-            Process.myUid(),
-            packageName
-        )
-        return mode == AppOpsManager.MODE_ALLOWED
-    }
+
 }

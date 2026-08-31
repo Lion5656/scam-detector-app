@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.scamdetectorapp.presentation.model.GenealogyNode
 import com.example.scamdetectorapp.presentation.model.PhoneGenealogyData
+import com.example.scamdetectorapp.ui.theme.*
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.scamdetectorapp.BuildConfig
@@ -69,14 +70,14 @@ fun PhoneGenealogyScreen(phoneNumber: String, onBack: () -> Unit) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(com.example.scamdetectorapp.ui.theme.AppBackgroundBrush)) {
+    Box(modifier = Modifier.fillMaxSize().background(AppBackgroundBrush)) {
         // 背景網格
         val infiniteTransition = rememberInfiniteTransition(label = "bg")
         val gridAlpha by infiniteTransition.animateFloat(0.02f, 0.08f, infiniteRepeatable(tween(3000), RepeatMode.Reverse), label = "grid")
         Canvas(modifier = Modifier.fillMaxSize()) {
             val gridSize = 40.dp.toPx()
-            for (x in 0..size.width.toInt() step gridSize.toInt()) { drawLine(Color(0xFF2979FF).copy(alpha = gridAlpha), Offset(x.toFloat(), 0f), Offset(x.toFloat(), size.height)) }
-            for (y in 0..size.height.toInt() step gridSize.toInt()) { drawLine(Color(0xFF2979FF).copy(alpha = gridAlpha), Offset(0f, y.toFloat()), Offset(size.width, y.toFloat())) }
+            for (x in 0..size.width.toInt() step gridSize.toInt()) { drawLine(ElectricBlue.copy(alpha = gridAlpha), Offset(x.toFloat(), 0f), Offset(x.toFloat(), size.height)) }
+            for (y in 0..size.height.toInt() step gridSize.toInt()) { drawLine(ElectricBlue.copy(alpha = gridAlpha), Offset(0f, y.toFloat()), Offset(size.width, y.toFloat())) }
         }
         Scaffold(
             topBar = {
@@ -111,7 +112,7 @@ private fun GenealogyContent(innerPadding: PaddingValues, data: PhoneGenealogyDa
     Column(modifier = Modifier.fillMaxSize().padding(innerPadding).verticalScroll(rememberScrollState()).padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         GenealogyGraph(data, onNodeClick)
         Spacer(modifier = Modifier.height(40.dp))
-        Text("號碼所屬標籤：${data.tagId}", color = Color(0xFF00E5FF), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+        Text("號碼所屬標籤：${data.tagId}", color = ScamCyan, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
         Spacer(modifier = Modifier.height(60.dp))
     }
 }
@@ -129,7 +130,7 @@ fun GenealogyGraph(data: PhoneGenealogyData, onNodeClick: (GenealogyNode) -> Uni
     // --- 優化點 4：效能。將文字測量移出 draw 區塊，僅在 data 改變時重新計算 ---
     val textCache = remember(data) {
         val numberStyle = TextStyle(color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-        val technicalStyle = TextStyle(color = Color(0xFF00E5FF), fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, shadow = Shadow(Color(0xFF00E5FF).copy(alpha = 0.5f), blurRadius = 5f))
+        val technicalStyle = TextStyle(color = ScamCyan, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, shadow = Shadow(ScamCyan.copy(alpha = 0.5f), blurRadius = 5f))
         
         GenealogyTextCache(
             rootText = textMeasurer.measure(data.rootNumber, numberStyle.copy(fontSize = 11.sp, color = Color(0xFFFF8A80))),
@@ -151,19 +152,19 @@ fun GenealogyGraph(data: PhoneGenealogyData, onNodeClick: (GenealogyNode) -> Uni
         val centerX = size.width / 2; val centerY = size.height / 2; val orbitRadius = 115.dp.toPx(); val rootRadius = 50.dp.toPx(); val nodeRadius = 32.dp.toPx()
         
         // 軌道
-        drawCircle(Color(0xFF2979FF).copy(alpha = 0.1f), orbitRadius, Offset(centerX, centerY), style = Stroke(width = 1.dp.toPx()))
+        drawCircle(ElectricBlue.copy(alpha = 0.1f), orbitRadius, Offset(centerX, centerY), style = Stroke(width = 1.dp.toPx()))
 
         // 連接線
         data.relatedNodes.forEachIndexed { index, _ ->
             val angle = Math.toRadians(index * (360.0 / data.relatedNodes.size) - 90.0 + orbitRotation)
             val endX = centerX + orbitRadius * cos(angle).toFloat(); val endY = centerY + orbitRadius * sin(angle).toFloat()
-            drawLine(Color(0xFF2979FF).copy(alpha = 0.2f), Offset(centerX, centerY), Offset(endX, endY), strokeWidth = 1.2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f)))
+            drawLine(ElectricBlue.copy(alpha = 0.2f), Offset(centerX, centerY), Offset(endX, endY), strokeWidth = 1.2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f)))
         }
 
         // 中心節點
-        drawCircle(Color(0xFFFF1744).copy(alpha = 0.08f), rootRadius * 1.6f, Offset(centerX, centerY))
-        drawCircle(Color(0xFF121A21), rootRadius, Offset(centerX, centerY))
-        drawCircle(Color(0xFFFF1744), rootRadius, Offset(centerX, centerY), style = Stroke(width = 2.dp.toPx()))
+        drawCircle(BrightRed.copy(alpha = 0.08f), rootRadius * 1.6f, Offset(centerX, centerY))
+        drawCircle(SurfaceDark, rootRadius, Offset(centerX, centerY))
+        drawCircle(BrightRed, rootRadius, Offset(centerX, centerY), style = Stroke(width = 2.dp.toPx()))
         drawText(textLayoutResult = textCache.rootText, topLeft = Offset(centerX - textCache.rootText.size.width / 2, centerY - textCache.rootText.size.height / 2))
 
         // 衛星節點
@@ -171,9 +172,9 @@ fun GenealogyGraph(data: PhoneGenealogyData, onNodeClick: (GenealogyNode) -> Uni
             val angle = Math.toRadians(index * (360.0 / data.relatedNodes.size) - 90.0 + orbitRotation)
             val nodeX = centerX + orbitRadius * cos(angle).toFloat(); val nodeY = centerY + orbitRadius * sin(angle).toFloat()
             
-            drawCircle(Color(0xFF121A21), nodeRadius, Offset(nodeX, nodeY))
-            drawCircle(Color(0xFF2979FF).copy(alpha = 0.5f), nodeRadius, Offset(nodeX, nodeY), style = Stroke(width = 1.5.dp.toPx()))
-            drawArc(Color(0xFF00E5FF).copy(alpha = 0.7f), (orbitRotation * 3 + index * 60), 90f, false, Offset(nodeX - nodeRadius, nodeY - nodeRadius), androidx.compose.ui.geometry.Size(nodeRadius * 2, nodeRadius * 2), style = Stroke(width = 2.dp.toPx()))
+            drawCircle(SurfaceDark, nodeRadius, Offset(nodeX, nodeY))
+            drawCircle(ElectricBlue.copy(alpha = 0.5f), nodeRadius, Offset(nodeX, nodeY), style = Stroke(width = 1.5.dp.toPx()))
+            drawArc(ScamCyan.copy(alpha = 0.7f), (orbitRotation * 3 + index * 60), 90f, false, Offset(nodeX - nodeRadius, nodeY - nodeRadius), androidx.compose.ui.geometry.Size(nodeRadius * 2, nodeRadius * 2), style = Stroke(width = 2.dp.toPx()))
 
             val label = textCache.nodeLabels[index]
             drawText(textLayoutResult = label, topLeft = Offset(nodeX - label.size.width / 2, nodeY - label.size.height / 2))
@@ -187,22 +188,22 @@ fun GenealogyGraph(data: PhoneGenealogyData, onNodeClick: (GenealogyNode) -> Uni
 @Composable
 fun NodeDetailDialog(node: GenealogyNode, onDismiss: () -> Unit, onSwitchRoot: () -> Unit) {
     AlertDialog(
-        onDismissRequest = onDismiss, containerColor = Color(0xFF0D1520),
-        title = { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Hub, contentDescription = null, tint = Color(0xFF448AFF)); Spacer(modifier = Modifier.width(12.dp)); Text("號碼關聯分析", color = Color.White) } },
+        onDismissRequest = onDismiss, containerColor = DeepDarkBlue,
+        title = { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Hub, contentDescription = null, tint = VibrantBlue); Spacer(modifier = Modifier.width(12.dp)); Text("號碼關聯分析", color = Color.White) } },
         text = {
             Column {
                 Text("標籤號碼：${node.phoneNumber}", color = Color.White, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp)); Text("最後活躍：${node.lastActive}", color = Color(0xFF00E5FF), fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(8.dp)); Text("最後活躍：${node.lastActive}", color = ScamCyan, fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("關聯原因：", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 node.reasons.forEach { reason ->
                     Text("• $reason", color = Color.LightGray, fontSize = 13.sp, modifier = Modifier.padding(vertical = 2.dp))
                 }
-                Spacer(modifier = Modifier.height(16.dp)); LinearProgressIndicator(progress = { node.connectionStrength }, modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape), color = Color(0xFF2979FF), trackColor = Color.White.copy(alpha = 0.1f))
+                Spacer(modifier = Modifier.height(16.dp)); LinearProgressIndicator(progress = { node.connectionStrength }, modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape), color = ElectricBlue, trackColor = Color.White.copy(alpha = 0.1f))
                 Text("關聯強度：${(node.connectionStrength * 100).toInt()}%", color = Color.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
             }
         },
-        confirmButton = { Button(onClick = onSwitchRoot, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2979FF)), shape = RoundedCornerShape(12.dp)) { Text("以此號碼重新分析", color = Color.White, fontWeight = FontWeight.Bold) } },
+        confirmButton = { Button(onClick = onSwitchRoot, colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue), shape = RoundedCornerShape(12.dp)) { Text("以此號碼重新分析", color = Color.White, fontWeight = FontWeight.Bold) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("關閉", color = Color.LightGray) } }
     )
 }

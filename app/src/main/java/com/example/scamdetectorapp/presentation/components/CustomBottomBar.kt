@@ -1,7 +1,5 @@
 package com.example.scamdetectorapp.presentation.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -15,13 +13,10 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -37,8 +32,6 @@ import com.example.scamdetectorapp.R
 private data class NavItemConfig(
     val title: String,
     val shortLabel: String,
-    val unselectedIcon: ImageVector? = null,
-    val selectedIcon: ImageVector? = null,
     val resId: Int? = null,
     val selectedResId: Int? = null
 )
@@ -50,28 +43,23 @@ private data class NavItemConfig(
 @Composable
 fun CustomBottomBar(currentTab: String, onTabSelected: (String) -> Unit) {
     val backgroundColor = Color(0xFF0D1117)
-    val activeColor = Color(0xFF9333EA) // 恢復為原始魅影紫
-    val inactiveColor = Color(0xFF94A3B8) // 恢復為原始冷灰
 
     val items = remember {
         listOf(
             NavItemConfig(
                 title = "首頁",
                 shortLabel = "首頁",
-                resId = R.drawable.proicons__home,
-                selectedResId = R.drawable.proicons__home_filled
+                resId = R.drawable.home_regular,
             ),
             NavItemConfig(
                 title = "檢測紀錄",
                 shortLabel = "紀錄",
-                unselectedIcon = Icons.Outlined.History,
-                selectedIcon = Icons.Filled.History
+                resId = R.drawable.history
             ),
             NavItemConfig(
                 title = "設定",
                 shortLabel = "設定",
-                unselectedIcon = Icons.Outlined.Settings,
-                selectedIcon = Icons.Filled.Settings
+                resId = R.drawable.setting_three
             )
         )
     }
@@ -80,9 +68,8 @@ fun CustomBottomBar(currentTab: String, onTabSelected: (String) -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(start = 32.dp, end = 32.dp, bottom = 24.dp)
+            .padding(start = 48.dp, end = 48.dp, bottom = 24.dp)
     ) {
-        // 外層陰影與微弱霓虹光暈 (Cyber Violet)
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -91,14 +78,6 @@ fun CustomBottomBar(currentTab: String, onTabSelected: (String) -> Unit) {
                     shape = RoundedCornerShape(100)
                     clip = false
                 }
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(activeColor.copy(alpha = 0.12f), Color.Transparent),
-                        center = Offset.Unspecified,
-                        radius = 600f
-                    ),
-                    shape = RoundedCornerShape(100)
-                )
         )
 
         Row(
@@ -115,11 +94,9 @@ fun CustomBottomBar(currentTab: String, onTabSelected: (String) -> Unit) {
                 val isSelected = currentTab == item.title
                 
                 val icon = when {
-                    isSelected && item.selectedIcon != null -> item.selectedIcon
-                    !isSelected && item.unselectedIcon != null -> item.unselectedIcon
                     isSelected && item.selectedResId != null -> ImageVector.vectorResource(item.selectedResId)
                     item.resId != null -> ImageVector.vectorResource(item.resId)
-                    else -> androidx.compose.material.icons.Icons.Default.Settings // Fallback
+                    else -> Icons.Default.Settings // Fallback
                 }
 
                 BottomNavItem(
@@ -127,8 +104,6 @@ fun CustomBottomBar(currentTab: String, onTabSelected: (String) -> Unit) {
                     shortLabel = item.shortLabel,
                     icon = icon,
                     isSelected = isSelected,
-                    activeColor = activeColor,
-                    inactiveColor = inactiveColor,
                     onClick = { onTabSelected(item.title) }
                 )
             }
@@ -142,15 +117,9 @@ private fun RowScope.BottomNavItem(
     shortLabel: String,
     icon: ImageVector,
     isSelected: Boolean,
-    activeColor: Color,
-    inactiveColor: Color,
     onClick: () -> Unit
 ) {
-    val iconColor by animateColorAsState(
-        targetValue = if (isSelected) activeColor else inactiveColor,
-        animationSpec = tween(300),
-        label = "color"
-    )
+    val iconColor = Color(0xFF94A3B8)
 
     Column(
         modifier = Modifier
@@ -169,7 +138,7 @@ private fun RowScope.BottomNavItem(
             imageVector = icon,
             contentDescription = title,
             tint = iconColor,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(28.dp)
         )
         
         Spacer(modifier = Modifier.height(4.dp))

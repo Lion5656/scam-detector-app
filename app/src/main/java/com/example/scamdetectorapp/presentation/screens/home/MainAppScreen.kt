@@ -1,5 +1,6 @@
 package com.example.scamdetectorapp.presentation.screens.home
 
+import android.app.Application
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -7,39 +8,65 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.vectorResource
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.scamdetectorapp.R
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.presentation.components.CustomBottomBar
+import com.example.scamdetectorapp.presentation.model.SharedContent
+import com.example.scamdetectorapp.presentation.model.SharedType
 import com.example.scamdetectorapp.presentation.screens.dashboard.DashboardScreen
 import com.example.scamdetectorapp.presentation.screens.detection.GenericDetectionFlow
 import com.example.scamdetectorapp.presentation.screens.detection.PhoneGenealogyScreen
+import com.example.scamdetectorapp.presentation.screens.detection.ScreenStep
 import com.example.scamdetectorapp.presentation.screens.history.HistoryScreen
 import com.example.scamdetectorapp.presentation.screens.setting.SettingScreen
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import com.example.scamdetectorapp.ui.theme.AppBackgroundBrush
 
 @Composable
-fun MainAppScreen() {
+fun MainAppScreen(
+    sharedContent: SharedContent? = null,
+    onSharedContentHandled: () -> Unit = {}
+) {
     val context = LocalContext.current
     val viewModel: MainViewModel = viewModel(
-        factory = MainViewModel.provideFactory(context.applicationContext as android.app.Application)
+        factory = MainViewModel.provideFactory(context.applicationContext as Application)
     )
 
-    // 預設切換為「首頁」
-    var currentTab by remember { mutableStateOf("首頁") }
-    // 新增：目前是否處於檢測流程中 (首頁的子狀態)
-    var activeDetectionMode by remember { mutableStateOf<DetectionMode?>(null) }
-    // 新增：儲存要查看族譜的號碼，若不為 null 則顯示族譜頁面
+    val initialData = remember(sharedContent) {
+        sharedContent?.let{
+            val mode = detectModeFromContent(it)
+            val input = if (it.type == SharedType.IMAGE) "uri:${it.data}" else it.data.trim()
+            Pair(mode, input)
+        }
+    }
+
+    val sharedDetectionMode by remember {
+        mutableStateOf(initialData?.first)
+    }
+
+    var currentTab by remember { mutableStateOf(if(initialData != null) "分享檢測" else "首頁") }
+
+    var activeDetectionMode by remember { mutableStateOf(initialData?.first) }
+    // 儲存要查看族譜的號碼，若不為 null 則顯示族譜頁面
     var genealogyPhoneNumber by remember { mutableStateOf<String?>(null) }
+
+    val isShareAutoInputEnabled by viewModel.isShareAutoInputEnabled.collectAsState()
+
+    LaunchedEffect(sharedContent) {
+        initialData?.let { (mode, input) ->
+            viewModel.resetAllStates()
+            if (isShareAutoInputEnabled) {
+                viewModel.setInput(mode, input)
+                viewModel.scan(mode, input)
+            }
+
+            onSharedContentHandled()
+        }
+    }
 
     if (genealogyPhoneNumber != null) {
         PhoneGenealogyScreen(
@@ -60,10 +87,19 @@ fun MainAppScreen() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        // 這裡不使用 innerPadding.bottom，讓內容可以延伸到底部
                         .padding(top = innerPadding.calculateTopPadding())
                 ) {
                     when (currentTab) {
+                        "分享檢測" -> {
+                            sharedDetectionMode?.let { mode ->
+                                GenericDetectionFlow(
+                                    mode = mode,
+                                    initialStep = ScreenStep.SCANNING,
+                                    onExitFlow = { currentTab = "首頁" },
+                                    viewModel = viewModel,
+                                )
+                            }
+                        }
                         "首頁" -> {
                             if (activeDetectionMode == null) {
                                 HomeScreen(
@@ -94,11 +130,6 @@ fun MainAppScreen() {
                                     DetectionMode.URL -> key(DetectionMode.URL) {
                                         GenericDetectionFlow(
                                             mode = DetectionMode.URL,
-                                            title = "檢測詐騙網址",
-                                            placeholder = "貼上網址，例如 https://...",
-                                            desc = "",
-                                            icon = com.example.scamdetectorapp.presentation.components.VibrantIcons.WebDetection,
-                                            accentColor = Color(0xFF4361EE),
                                             onSwitchMode = { activeDetectionMode = it },
                                             onExitFlow = { 
                                                 viewModel.resetState(mode)
@@ -110,11 +141,6 @@ fun MainAppScreen() {
                                     DetectionMode.PHONE -> key(DetectionMode.PHONE) {
                                         GenericDetectionFlow(
                                             mode = DetectionMode.PHONE,
-                                            title = "檢測詐騙電話",
-                                            placeholder = "輸入電話號碼 (如 0912...)",
-                                            desc = "",
-                                            icon = com.example.scamdetectorapp.presentation.components.VibrantIcons.PhoneDetection,
-                                            accentColor = Color(0xFF7209B7),
                                             onNavigateToGenealogy = { genealogyPhoneNumber = it },
                                             onSwitchMode = { activeDetectionMode = it },
                                             onExitFlow = { 
@@ -127,11 +153,6 @@ fun MainAppScreen() {
                                     DetectionMode.TEXT -> key(DetectionMode.TEXT) {
                                         GenericDetectionFlow(
                                             mode = DetectionMode.TEXT,
-                                            title = "檢測詐騙簡訊",
-                                            placeholder = "輸入簡訊文字內容...",
-                                            desc = "",
-                                            icon = com.example.scamdetectorapp.presentation.components.VibrantIcons.SmsDetection,
-                                            accentColor = Color(0xFF2EC4B6),
                                             isMultiLine = true,
                                             onSwitchMode = { activeDetectionMode = it },
                                             onExitFlow = { activeDetectionMode = null },
@@ -141,11 +162,6 @@ fun MainAppScreen() {
                                     DetectionMode.PRICE -> key(DetectionMode.PRICE) {
                                         GenericDetectionFlow(
                                             mode = DetectionMode.PRICE,
-                                            title = "FB 一頁式購物檢測",
-                                            placeholder = "",
-                                            desc = "",
-                                            icon = com.example.scamdetectorapp.presentation.components.VibrantIcons.PriceDetection,
-                                            accentColor = Color(0xFFFB8500),
                                             onSwitchMode = { activeDetectionMode = it },
                                             onExitFlow = { activeDetectionMode = null },
                                             viewModel = viewModel
@@ -154,7 +170,6 @@ fun MainAppScreen() {
                                 }
                             }
                         }
-
                         "儀表板" -> DashboardScreen(onBack = { currentTab = "首頁" })
 
                         "新聞" -> NewsScreen(onBack = { currentTab = "首頁" })
@@ -166,7 +181,7 @@ fun MainAppScreen() {
                 }
 
                 // 將 CustomBottomBar 移入 Box 中並置於底部中心，達成真正的「懸浮於內容之上」
-                val hideBottomBar = activeDetectionMode != null || 
+                val hideBottomBar = activeDetectionMode != null ||
                                    currentTab == "儀表板" || 
                                    currentTab == "新聞" || 
                                    currentTab == "檢測紀錄" ||
@@ -181,6 +196,24 @@ fun MainAppScreen() {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+private fun detectModeFromContent(content: SharedContent) : DetectionMode{
+    return when (content.type) {
+        SharedType.IMAGE -> DetectionMode.PRICE
+        SharedType.TEXT -> {
+            val text = content.data.trim()
+            val urlRegex = Regex(
+                """^(https?://)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(/\S*)?$""",
+                RegexOption.IGNORE_CASE
+            )
+            when {
+                text.matches(urlRegex) -> DetectionMode.URL
+                text.filter { it.isDigit() }.startsWith("0") && text.length in 9..10  -> DetectionMode.PHONE
+                else -> DetectionMode.TEXT
             }
         }
     }

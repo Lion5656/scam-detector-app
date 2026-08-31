@@ -39,6 +39,7 @@ import android.content.Intent
 import android.net.Uri
 import com.example.scamdetectorapp.R
 import com.example.scamdetectorapp.presentation.model.*
+import com.example.scamdetectorapp.ui.theme.*
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.drawText
 
@@ -48,15 +49,14 @@ fun DashboardScreen(onBack: () -> Unit = {}) {
     var learningProgress by remember { mutableIntStateOf(87) }
     val textWhite = Color.White
 
-    Box(modifier = Modifier.fillMaxSize().background(com.example.scamdetectorapp.ui.theme.AppBackgroundBrush)) {
-        // 背景網格
+    Box(modifier = Modifier.fillMaxSize().background(AppBackgroundBrush)) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val gridSize = 40.dp.toPx()
             for (x in 0..size.width.toInt() step gridSize.toInt()) {
-                drawLine(Color(0xFF2979FF).copy(alpha = 0.03f), Offset(x.toFloat(), 0f), Offset(x.toFloat(), size.height))
+                drawLine(ElectricBlue.copy(alpha = 0.03f), Offset(x.toFloat(), 0f), Offset(x.toFloat(), size.height))
             }
             for (y in 0..size.height.toInt() step gridSize.toInt()) {
-                drawLine(Color(0xFF2979FF).copy(alpha = 0.03f), Offset(0f, y.toFloat()), Offset(size.width, y.toFloat()))
+                drawLine(ElectricBlue.copy(alpha = 0.03f), Offset(0f, y.toFloat()), Offset(size.width, y.toFloat()))
             }
         }
 
@@ -129,17 +129,17 @@ fun CoolTabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) Color(0xFF1A237E).copy(alpha = 0.4f) else Color.Transparent,
-        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF448AFF).copy(alpha = glowAlpha)) else androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+        color = if (isSelected) DeepDarkBlue.copy(alpha = 0.4f) else Color.Transparent,
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, VibrantBlue.copy(alpha = glowAlpha)) else androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
         modifier = Modifier.height(44.dp)
     ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 20.dp)) {
             Text(
                 text = text,
-                color = if (isSelected) Color(0xFF448AFF) else Color.Gray,
+                color = if (isSelected) VibrantBlue else Color.Gray,
                 fontSize = 15.sp,
                 fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal,
-                style = TextStyle(shadow = if (isSelected) Shadow(Color(0xFF2979FF), blurRadius = 10f) else null)
+                style = TextStyle(shadow = if (isSelected) Shadow(ElectricBlue, blurRadius = 10f) else null)
             )
         }
     }
@@ -172,8 +172,8 @@ fun KnowledgeCardTab(onLearned: () -> Unit) {
                     selected = selectedCategory == category,
                     onClick = { selectedCategory = category; currentIndex = 0 },
                     label = { Text(category) },
-                    colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent, selectedContainerColor = Color(0xFF1A237E), labelColor = Color.Gray, selectedLabelColor = Color(0xFF448AFF)),
-                    border = FilterChipDefaults.filterChipBorder(borderColor = Color(0xFF2979FF).copy(alpha = 0.5f), selectedBorderColor = Color(0xFF2979FF), enabled = true, selected = selectedCategory == category)
+                    colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent, selectedContainerColor = DeepDarkBlue, labelColor = Color.Gray, selectedLabelColor = VibrantBlue),
+                    border = FilterChipDefaults.filterChipBorder(borderColor = ElectricBlue.copy(alpha = 0.5f), selectedBorderColor = ElectricBlue, enabled = true, selected = selectedCategory == category)
                 )
             }
         }
@@ -218,9 +218,9 @@ fun FlipCard(card: KnowledgeCard, onLearned: () -> Unit) {
 fun CardFace(card: KnowledgeCard, isBack: Boolean, onCollectClick: () -> Unit, onLearnClick: () -> Unit, isCollected: Boolean, isLearned: Boolean) {
     Surface(
         modifier = Modifier.fillMaxSize().graphicsLayer { if (isBack) rotationY = 180f },
-        color = Color(0xFF121A21),
+        color = SurfaceDark,
         shape = RoundedCornerShape(28.dp),
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, Brush.linearGradient(listOf(Color(0xFF2979FF).copy(alpha = 0.6f), Color(0xFF00E5FF).copy(alpha = 0.2f))))
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, Brush.linearGradient(listOf(ElectricBlue.copy(alpha = 0.6f), ScamCyan.copy(alpha = 0.2f))))
     ) {
         Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
             if (!isBack) {
@@ -233,13 +233,13 @@ fun CardFace(card: KnowledgeCard, isBack: Boolean, onCollectClick: () -> Unit, o
                     }
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                    Text(card.title, color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, style = TextStyle(shadow = Shadow(Color(0xFF2979FF), blurRadius = 15f)))
+                    Text(card.title, color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, style = TextStyle(shadow = Shadow(ElectricBlue, blurRadius = 15f)))
                     Spacer(modifier = Modifier.height(20.dp))
                     Text(text = highlightKeywords(card.content), textAlign = TextAlign.Center, lineHeight = 26.sp, fontSize = 16.sp)
                     Spacer(modifier = Modifier.height(28.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { card.tags.forEach { tag -> Text("#$tag", color = Color(0xFF448AFF), fontSize = 12.sp, fontWeight = FontWeight.Bold) } }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { card.tags.forEach { tag -> Text("#$tag", color = VibrantBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold) } }
                 }
-                Text("點擊看破詐騙陷阱", color = Color(0xFF2979FF).copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Text("點擊看破詐騙陷阱", color = ElectricBlue.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Lightbulb, contentDescription = null, tint = Color(0xFFFFD54F), modifier = Modifier.size(20.dp))
@@ -248,12 +248,12 @@ fun CardFace(card: KnowledgeCard, isBack: Boolean, onCollectClick: () -> Unit, o
                 }
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) { Text(card.detectionMethod, color = Color.LightGray, fontSize = 16.sp, lineHeight = 30.sp, textAlign = TextAlign.Center) }
                 if (!isLearned) {
-                    Button(onClick = onLearnClick, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A237E)), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("我學會了", color = Color.White, fontWeight = FontWeight.Bold) }
+                    Button(onClick = onLearnClick, colors = ButtonDefaults.buttonColors(containerColor = DeepDarkBlue), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("我學會了", color = Color.White, fontWeight = FontWeight.Bold) }
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF00C853), modifier = Modifier.size(22.dp))
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = BrightGreen, modifier = Modifier.size(22.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("已存入防禦資料庫", color = Color(0xFF00C853), fontWeight = FontWeight.ExtraBold)
+                        Text("已存入防禦資料庫", color = BrightGreen, fontWeight = FontWeight.ExtraBold)
                     }
                 }
             }
@@ -274,8 +274,8 @@ fun QuizDialog(quiz: Quiz, onDismiss: () -> Unit, onCorrect: () -> Unit) {
     var selectedOption by remember { mutableIntStateOf(-1) }
     var isAnswered by remember { mutableStateOf(false) }
     AlertDialog(
-        onDismissRequest = onDismiss, containerColor = Color(0xFF0A0E14),
-        title = { Text("防禦測試", color = Color(0xFF448AFF), fontWeight = FontWeight.Bold) },
+        onDismissRequest = onDismiss, containerColor = DeepDarkBlue,
+        title = { Text("防禦測試", color = VibrantBlue, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Text(quiz.question, color = Color.White, fontSize = 15.sp)
@@ -283,13 +283,13 @@ fun QuizDialog(quiz: Quiz, onDismiss: () -> Unit, onCorrect: () -> Unit) {
                 quiz.options.forEachIndexed { index, option ->
                     Surface(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp).clickable { if (!isAnswered) selectedOption = index },
-                        color = when { isAnswered && index == quiz.correctAnswerIndex -> Color(0xFF00C853).copy(alpha = 0.15f); isAnswered && index == selectedOption -> Color(0xFFFF1744).copy(alpha = 0.15f); selectedOption == index -> Color(0xFF1A237E).copy(alpha = 0.6f); else -> Color(0xFF121A21) },
-                        shape = RoundedCornerShape(10.dp), border = androidx.compose.foundation.BorderStroke(1.dp, if (selectedOption == index) Color(0xFF2979FF) else Color.White.copy(alpha = 0.1f))
+                        color = when { isAnswered && index == quiz.correctAnswerIndex -> BrightGreen.copy(alpha = 0.15f); isAnswered && index == selectedOption -> BrightRed.copy(alpha = 0.15f); selectedOption == index -> DeepDarkBlue.copy(alpha = 0.6f); else -> SurfaceDark },
+                        shape = RoundedCornerShape(10.dp), border = androidx.compose.foundation.BorderStroke(1.dp, if (selectedOption == index) ElectricBlue else Color.White.copy(alpha = 0.1f))
                     ) { Text(option, color = Color.White, modifier = Modifier.padding(14.dp), fontSize = 14.sp) }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { if (!isAnswered) { isAnswered = true; if (selectedOption == quiz.correctAnswerIndex) onCorrect() } else onDismiss() }, enabled = selectedOption != -1) { Text(if (isAnswered) "確定" else "檢查答案", color = Color(0xFF448AFF), fontWeight = FontWeight.Bold) } }
+        confirmButton = { TextButton(onClick = { if (!isAnswered) { isAnswered = true; if (selectedOption == quiz.correctAnswerIndex) onCorrect() } else onDismiss() }, enabled = selectedOption != -1) { Text(if (isAnswered) "確定" else "檢查答案", color = VibrantBlue, fontWeight = FontWeight.Bold) } }
     )
 }
 
@@ -300,13 +300,13 @@ fun RiskDashboardTab(learningProgress: Int) {
         ScamTicker(listOf("[警報] 實時掃描啟動中...", "[數據] 今日已成功攔截 2,415 筆威脅", "[系統] 第 4 層防禦已開啟"))
         Spacer(modifier = Modifier.height(32.dp))
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth()) { AnimatedStatCard(Modifier.weight(1f), "3", "本月高風險訊息", Color(0xFFFF1744)); Spacer(modifier = Modifier.width(12.dp)); AnimatedStatCard(Modifier.weight(1f), "12", "成功攔截總數", Color(0xFF00C853)) }
+            Row(modifier = Modifier.fillMaxWidth()) { AnimatedStatCard(Modifier.weight(1f), "3", "本月高風險訊息", BrightRed); Spacer(modifier = Modifier.width(12.dp)); AnimatedStatCard(Modifier.weight(1f), "12", "成功攔截總數", BrightGreen) }
             Spacer(modifier = Modifier.height(12.dp))
-            Row(modifier = Modifier.fillMaxWidth()) { AnimatedStatCard(Modifier.weight(1f), "$learningProgress%", "知識等級", Color(0xFF2979FF)); Spacer(modifier = Modifier.width(12.dp)); AnimatedStatCard(Modifier.weight(1f), "4", "已回報案例", Color(0xFF448AFF)) }
+            Row(modifier = Modifier.fillMaxWidth()) { AnimatedStatCard(Modifier.weight(1f), "$learningProgress%", "知識等級", ElectricBlue); Spacer(modifier = Modifier.width(12.dp)); AnimatedStatCard(Modifier.weight(1f), "4", "已回報案例", VibrantBlue) }
             Spacer(modifier = Modifier.height(40.dp))
             Text("詐騙類型分佈", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)
             Spacer(modifier = Modifier.height(20.dp))
-            val scamTypes = listOf(ScamTypeRatio("投資詐騙", 30, Color(0xFFFF1744)), ScamTypeRatio("假冒客服", 20, Color(0xFFFF9100)), ScamTypeRatio("愛情詐騙", 15, Color(0xFFD500F9)), ScamTypeRatio("網購詐騙", 15, Color(0xFF2979FF)), ScamTypeRatio("公家機關", 10, Color(0xFF00E5FF)), ScamTypeRatio("釣魚簡訊", 10, Color(0xFF00C853)))
+            val scamTypes = listOf(ScamTypeRatio("投資詐騙", 30, BrightRed), ScamTypeRatio("假冒客服", 20, Color(0xFFFF9100)), ScamTypeRatio("愛情詐騙", 15, Color(0xFFD500F9)), ScamTypeRatio("網購詐騙", 15, ElectricBlue), ScamTypeRatio("公家機關", 10, ScamCyan), ScamTypeRatio("釣魚簡訊", 10, BrightGreen))
             scamTypes.forEach { NeonProgressBar(it); Spacer(modifier = Modifier.height(16.dp)) }
             Spacer(modifier = Modifier.height(32.dp))
             EmergencyActionSection()
@@ -317,7 +317,7 @@ fun RiskDashboardTab(learningProgress: Int) {
 
 @Composable
 fun AnimatedStatCard(modifier: Modifier, value: String, label: String, color: Color) {
-    Surface(modifier = modifier.aspectRatio(1.4f), color = Color(0xFF121A21), shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Brush.linearGradient(listOf(color.copy(alpha = 0.4f), Color.Transparent)))) {
+    Surface(modifier = modifier.aspectRatio(1.4f), color = SurfaceDark, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Brush.linearGradient(listOf(color.copy(alpha = 0.4f), Color.Transparent)))) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.Center) {
             Text(value, color = color, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, style = TextStyle(shadow = Shadow(color, blurRadius = 20f)))
             Spacer(modifier = Modifier.height(4.dp))
@@ -339,12 +339,12 @@ fun NeonProgressBar(ratio: ScamTypeRatio) {
 fun ScamTicker(messages: List<String>) {
     val fullText = messages.joinToString("        ") { it }
     val textMeasurer = rememberTextMeasurer()
-    val textStyle = TextStyle(color = Color(0xFF448AFF), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+    val textStyle = TextStyle(color = VibrantBlue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     val textLayoutResult = textMeasurer.measure(fullText, textStyle)
     val textWidthPx = textLayoutResult.size.width.toFloat()
     var scrollOffset by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(fullText) { while (true) { scrollOffset -= 0.8f; if (scrollOffset < -textWidthPx) scrollOffset = 0f; kotlinx.coroutines.delay(10) } }
-    Surface(modifier = Modifier.fillMaxWidth().height(38.dp), color = Color(0xFF0D1520).copy(alpha = 0.8f), border = androidx.compose.foundation.BorderStroke(0.5.dp, Brush.horizontalGradient(listOf(Color.Transparent, Color(0xFF2979FF), Color.Transparent)))) {
+    Surface(modifier = Modifier.fillMaxWidth().height(38.dp), color = DeepDarkBlue.copy(alpha = 0.8f), border = androidx.compose.foundation.BorderStroke(0.5.dp, Brush.horizontalGradient(listOf(Color.Transparent, ElectricBlue, Color.Transparent)))) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawText(textLayoutResult = textLayoutResult, topLeft = Offset(scrollOffset, size.height / 2 - textLayoutResult.size.height / 2))
             drawText(textLayoutResult = textLayoutResult, topLeft = Offset(scrollOffset + textWidthPx, size.height / 2 - textLayoutResult.size.height / 2))

@@ -1,6 +1,5 @@
 package com.example.scamdetectorapp.presentation.screens.history
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,15 +9,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.automirrored.filled.Help
-import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -30,7 +24,7 @@ import com.example.scamdetectorapp.R
 import com.example.scamdetectorapp.data.local.HistoryEntity
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.scamdetectorapp.ui.theme.AppBackgroundBrush
+import com.example.scamdetectorapp.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -38,7 +32,7 @@ import java.util.*
 fun HistoryScreen(onBack: () -> Unit, viewModel: MainViewModel) {
     val textWhite = Color.White
     val textGrey = colorResource(R.color.scam_text_grey)
-    val panelColor = Color(0xFF1E2630)
+    val panelColor = PanelColor
     
     // 使用資料庫中的真實數據
     val allItems by viewModel.allHistory.collectAsStateWithLifecycle()
@@ -187,7 +181,7 @@ fun HistoryCard(
     }
 
     Surface(
-        color = Color(0xFF1E2630), // 改為單一面板色，拿掉漸層
+        color = PanelColor, // 改為單一面板色，拿掉漸層
         shape = RoundedCornerShape(32.dp),
         modifier = Modifier.fillMaxWidth()
     ) {

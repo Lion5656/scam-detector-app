@@ -15,6 +15,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.colorResource
 import androidx.lifecycle.lifecycleScope
 import com.example.scamdetectorapp.data.SettingsManager
+import com.example.scamdetectorapp.presentation.model.SharedContent
+import com.example.scamdetectorapp.presentation.model.SharedType
 import com.example.scamdetectorapp.presentation.screens.home.MainAppScreen
 import com.example.scamdetectorapp.presentation.screens.splash.SplashScreen
 import com.example.scamdetectorapp.service.MonitorService
@@ -22,15 +24,46 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
+    private var sharedContentState by mutableStateOf<SharedContent?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        handleIntent(intent)
+
         // 啟動自動防護服務 (若設定為開啟)
         startMonitorServiceIfEnabled()
 
         setContent {
             ScamGuardTheme {
-                AppEntry()
+                AppEntry(sharedContent = sharedContentState, onSharedContentHandled = { sharedContentState = null })
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_SEND) {
+            val type = intent.type
+            if (type?.startsWith("text/") == true) {
+                intent.getStringExtra(Intent.EXTRA_TEXT)?.let {
+                    sharedContentState = SharedContent(SharedType.TEXT, it)
+                }
+            } else if (type?.startsWith("image/") == true) {
+                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                }
+                uri?.let {
+                    sharedContentState = SharedContent(SharedType.IMAGE, it.toString())
+                }
             }
         }
     }
@@ -82,12 +115,12 @@ fun ScamGuardTheme(content: @Composable () -> Unit) {
 
 // ==================== 2. App 入口與閃屏頁邏輯 ====================
 @Composable
-fun AppEntry() {
-    var showSplash by remember { mutableStateOf(true) }
+fun AppEntry(sharedContent: SharedContent?, onSharedContentHandled: () -> Unit) {
+    var showSplash by remember { mutableStateOf(sharedContent == null) }
 
     if (showSplash) {
         SplashScreen(onFinished = { showSplash = false })
     } else {
-        MainAppScreen()
+        MainAppScreen(sharedContent = sharedContent, onSharedContentHandled = onSharedContentHandled)
     }
 }
