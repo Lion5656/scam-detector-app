@@ -170,7 +170,7 @@ fun MainAppScreen(
                                 }
                             }
                         }
-                        "儀表板" -> DashboardScreen(onBack = { currentTab = "首頁" })
+                        "儀表板" -> DashboardScreen(onBack = { currentTab = "首頁" }, viewModel = viewModel)
 
                         "新聞" -> NewsScreen(onBack = { currentTab = "首頁" })
 

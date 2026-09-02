@@ -1,5 +1,6 @@
 import java.util.Properties
 import java.io.FileInputStream
+import com.android.build.api.dsl.ApplicationExtension
 
 plugins {
     alias(libs.plugins.android.application)
@@ -8,9 +9,9 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-android {
+extensions.configure<ApplicationExtension> {
     namespace = "com.example.scamdetectorapp"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = "27.0.12077973"
 
     // 1. 讀取 local.properties
@@ -23,7 +24,7 @@ android {
     defaultConfig {
         applicationId = "com.example.scamdetectorapp"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
@@ -84,6 +85,12 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
 dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.core.ktx)
@@ -100,6 +107,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.android.material:material:1.11.0")
     implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.9")
     implementation(libs.androidx.navigation.compose)
     implementation(libs.coil.compose)

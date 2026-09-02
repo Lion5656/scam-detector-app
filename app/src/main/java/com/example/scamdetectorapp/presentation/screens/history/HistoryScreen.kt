@@ -21,7 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.scamdetectorapp.R
-import com.example.scamdetectorapp.data.local.HistoryEntity
+import com.example.scamdetectorapp.data.local.entity.HistoryEntity
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.scamdetectorapp.ui.theme.*

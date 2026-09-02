@@ -68,7 +68,7 @@ fun CustomBottomBar(currentTab: String, onTabSelected: (String) -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(start = 48.dp, end = 48.dp, bottom = 24.dp)
+            .padding(start = 48.dp, end = 48.dp, bottom = 16.dp)
     ) {
         Box(
             modifier = Modifier
@@ -83,7 +83,7 @@ fun CustomBottomBar(currentTab: String, onTabSelected: (String) -> Unit) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(72.dp)
+                .height(64.dp)
                 .clip(RoundedCornerShape(100))
                 .background(backgroundColor)
                 .padding(horizontal = 12.dp),
@@ -129,8 +129,7 @@ private fun RowScope.BottomNavItem(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick
-            )
-            .padding(top = 4.dp),
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -138,7 +137,7 @@ private fun RowScope.BottomNavItem(
             imageVector = icon,
             contentDescription = title,
             tint = iconColor,
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier.size(24.dp)
         )
         
         Spacer(modifier = Modifier.height(4.dp))

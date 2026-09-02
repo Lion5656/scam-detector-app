@@ -10,7 +10,9 @@ data class DashboardStats(
     val interceptedCount: Int,
     val learningProgress: Int, // 百分比
     val reportedCases: Int,
-    val typeDistribution: List<ScamTypeRatio>
+    val typeDistribution: List<ScamTypeRatio>,
+    val phoneTypeDistribution: List<ScamTypeRatio>,
+    val trendData: RiskTrendData
 )
 
 /**
@@ -20,4 +22,14 @@ data class ScamTypeRatio(
     val label: String,
     val percentage: Int,
     val color: Color
+)
+
+/**
+ * 風險趨勢資料
+ */
+data class RiskTrendData(
+    val lowRisk: List<Float>,
+    val mediumRisk: List<Float>,
+    val highRisk: List<Float>,
+    val labels: List<String>
 )

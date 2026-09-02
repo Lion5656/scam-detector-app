@@ -47,10 +47,6 @@ import com.example.scamdetectorapp.ui.theme.*
 import com.airbnb.lottie.compose.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
-import com.example.scamdetectorapp.presentation.viewmodel.RecentScansUiState
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -59,6 +55,7 @@ fun HomeScreen(
     onNavigateTo: (String) -> Unit,
     viewModel: MainViewModel = viewModel(factory = MainViewModel.provideFactory(LocalContext.current.applicationContext as android.app.Application))
 ) {
+    val isProtectionEnabled by viewModel.isProtectionEnabled.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     

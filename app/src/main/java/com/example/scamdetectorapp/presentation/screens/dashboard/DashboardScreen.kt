@@ -4,22 +4,28 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -27,11 +33,26 @@ import androidx.compose.ui.unit.sp
 import com.example.scamdetectorapp.presentation.model.*
 import com.airbnb.lottie.compose.*
 import androidx.compose.ui.layout.ContentScale
-import com.example.scamdetectorapp.ui.theme.*
-import androidx.compose.ui.text.drawText
+import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.res.painterResource
+import com.example.scamdetectorapp.R
 
 @Composable
-fun DashboardScreen() {
+fun DashboardScreen(
+    onBack: () -> Unit,
+    viewModel: MainViewModel
+) {
+    val scrollState = rememberScrollState()
+    
+    // 計算標題列的透明度：隨滑動距離淡出
+    val titleAlpha by remember {
+        derivedStateOf {
+            val progress = (scrollState.value / 400f).coerceIn(0f, 1f)
+            1f - (progress * progress * progress)
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF06090E))) {
         // 使用 Lottie 全螢幕動態背景
         val composition by rememberLottieComposition(
@@ -45,36 +66,68 @@ fun DashboardScreen() {
             contentScale = ContentScale.Crop
         )
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 16.dp)
-        ) {
-            // 標題列
-            Text(
-                text = "風險數據中心",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-            )
+        RiskDashboardTab(viewModel, scrollState)
 
-            Spacer(modifier = Modifier.height(12.dp))
+        if (titleAlpha > 0f) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer { alpha = titleAlpha }
+            ) {
+                Spacer(modifier = Modifier.height(60.dp))
 
-            RiskDashboardTab()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(Color.White.copy(alpha = 0.05f), CircleShape)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_back_less_than),
+                            contentDescription = "返回",
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Text(
+                        text = "風險數據中心",
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-fun RiskDashboardTab() {
+fun RiskDashboardTab(viewModel: MainViewModel, scrollState: ScrollState) {
     val scamPrimary = Color(0xFF4F7CFF)
     val scamRed = Color(0xFFF05A5A)
     val scamYellow = Color(0xFFF2C94C)
     val surfaceDark = Color(0xFF171E26)
 
-    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        // --- 1. 今日安全摘要 ---
+    val stats by viewModel.dashboardStats.collectAsStateWithLifecycle()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+    ) {
+        // 為了讓內容初始位置在標題下方，增加與標題列等高的間距
+        Spacer(modifier = Modifier.height(160.dp))
+
+        // --- 今日安全摘要 ---
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -84,43 +137,21 @@ fun RiskDashboardTab() {
                 .border(0.5.dp, scamPrimary.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = scamPrimary, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("系統狀態：守護中", color = scamPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                val riskTrend = if (stats.highRiskMessages > 0) "高" else "低"
+                val riskColor = if (stats.highRiskMessages > 0) scamRed else Color.White
+                Text("今日風險趨勢：$riskTrend", color = riskColor, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                val summaryText = if (stats.highRiskMessages > 0) {
+                    "今日發現 ${stats.highRiskMessages} 筆高風險紀錄，建議立即檢查並封鎖。"
+                } else {
+                    "目前尚未發現針對您個人的緊急威脅，請保持警覺。"
                 }
-                Spacer(Modifier.height(12.dp))
-                Text("今日風險趨勢：低", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Text("目前尚未發現針對您個人的緊急威脅，請保持警覺。", color = Color.Gray, fontSize = 13.sp, lineHeight = 20.sp)
+                Text(summaryText, color = Color.Gray, fontSize = 13.sp, lineHeight = 20.sp)
             }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // --- 2. 最近檢測紀錄 ---
-        Text(
-            text = "最近檢測紀錄",
-            color = Color.White,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        val recentEvents = listOf(
-            RecentEvent("電話", "0912-334-456", "高風險｜冒充官署", "2小時前", scamRed),
-            RecentEvent("網址", "https://bit.ly/secure-...", "中風險｜可疑連結", "昨天", scamYellow),
-            RecentEvent("簡訊", "【包裹已配達...】", "安全｜一般物流", "2天前", Color(0xFF00C853))
-        )
-
-        recentEvents.forEach { event ->
-            RecentEventItem(event, surfaceDark)
-            Spacer(modifier = Modifier.height(8.dp))
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // --- 3. 詐騙風險趨勢 (自定義折線圖) ---
+        // --- 詐騙風險趨勢 ---
         Text(
             text = "本週風險趨勢回顧",
             color = Color.White,
@@ -131,10 +162,8 @@ fun RiskDashboardTab() {
         Spacer(modifier = Modifier.height(16.dp))
 
         Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-            CyberpunkTrendChart(
-                data = listOf(15f, 28f, 22f, 45f, 35f, 52f, 38f),
-                labels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
-                primaryColor = scamPrimary,
+            MultiRiskTrendChart(
+                trendData = stats.trendData,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(220.dp)
@@ -146,7 +175,7 @@ fun RiskDashboardTab() {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // --- 4. 詐騙類型分佈比例 ---
+        // ---  詐騙類型分佈比例 ---
         Text(
             text = "詐騙類型分佈比例",
             color = Color.White,
@@ -164,24 +193,42 @@ fun RiskDashboardTab() {
                     .background(surfaceDark)
                     .padding(20.dp)
             ) {
-                val scamTypeRatios = listOf(
-                    ScamTypeRatio("假投資詐騙", 35, scamRed),
-                    ScamTypeRatio("假網絡拍賣", 25, scamYellow),
-                    ScamTypeRatio("解除分期付款", 20, scamPrimary),
-                    ScamTypeRatio("猜猜我是誰", 20, Color.Gray)
-                )
-                scamTypeRatios.forEachIndexed { index, ratio ->
+                stats.typeDistribution.forEachIndexed { index, ratio ->
                     SimpleProgressBar(ratio)
-                    if (index < scamTypeRatios.size - 1) Spacer(Modifier.height(16.dp))
+                    if (index < stats.typeDistribution.size - 1) Spacer(Modifier.height(16.dp))
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // 緊急操作
+        // --- 5. 詐騙電話種類統計 ---
+        Text(
+            text = "詐騙電話種類統計",
+            color = Color.White,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
         Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-            EmergencyActionSection()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(surfaceDark)
+                    .padding(20.dp)
+            ) {
+                if (stats.phoneTypeDistribution.all { it.percentage == 0 }) {
+                    Text("暫無高風險電話統計資料", color = Color.Gray, fontSize = 13.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+                } else {
+                    stats.phoneTypeDistribution.forEachIndexed { index, ratio ->
+                        SimpleProgressBar(ratio)
+                        if (index < stats.phoneTypeDistribution.size - 1) Spacer(Modifier.height(16.dp))
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(40.dp))
@@ -248,116 +295,175 @@ fun SimpleProgressBar(ratio: ScamTypeRatio) {
 }
 
 @Composable
-fun CyberpunkTrendChart(
-    data: List<Float>,
-    labels: List<String>,
-    primaryColor: Color,
+fun MultiRiskTrendChart(
+    trendData: RiskTrendData,
     modifier: Modifier = Modifier
 ) {
+    val lowColor = Color(0xFF00C853)
+    val mediumColor = Color(0xFFF2C94C)
+    val highColor = Color(0xFFF05A5A)
+
     val transitionProgress = remember { Animatable(0f) }
-    LaunchedEffect(data) {
-        transitionProgress.animateTo(1f, tween(1500, easing = FastOutSlowInEasing))
+    LaunchedEffect(trendData) {
+        transitionProgress.animateTo(1f, tween(1200, easing = FastOutSlowInEasing))
     }
 
-    Canvas(modifier = modifier) {
-        val width = size.width
-        val height = size.height
-        val padding = 40.dp.toPx()
-        val chartWidth = width - padding * 2
-        val chartHeight = height - padding * 2
-
-        val maxVal = (data.maxOrNull() ?: 1f).coerceAtLeast(1f) * 1.2f
-        val stepX = chartWidth / (data.size - 1)
-
-        // 1. 繪製背景網格
-        val gridLines = 5
-        for (i in 0..gridLines) {
-            val y = padding + (chartHeight / gridLines) * i
-            drawLine(
-                color = Color.White.copy(alpha = 0.05f),
-                start = Offset(padding, y),
-                end = Offset(width - padding, y),
-                strokeWidth = 1.dp.toPx()
-            )
+    Column(modifier = modifier) {
+        // 圖例
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("每日風險分佈", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ChartLegendItem("高", highColor)
+                Spacer(Modifier.width(8.dp))
+                ChartLegendItem("中", mediumColor)
+                Spacer(Modifier.width(8.dp))
+                ChartLegendItem("低", lowColor)
+            }
         }
 
-        // 2. 準備路徑
-        val path = Path()
-        data.forEachIndexed { index, value ->
-            val x = padding + index * stepX
-            val y = padding + chartHeight - (value / maxVal) * chartHeight * transitionProgress.value
-            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
-        }
+        Canvas(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            val width = size.width
+            val height = size.height
+            val paddingX = 40.dp.toPx()
+            val paddingY = 20.dp.toPx()
+            val chartWidth = width - paddingX * 2
+            val chartHeight = height - paddingY * 2
 
-        // 3. 繪製填滿漸層
-        val fillPath = Path().apply {
-            addPath(path)
-            lineTo(padding + (data.size - 1) * stepX, padding + chartHeight)
-            lineTo(padding, padding + chartHeight)
-            close()
-        }
-        drawPath(
-            path = fillPath,
-            brush = Brush.verticalGradient(
-                colors = listOf(primaryColor.copy(alpha = 0.2f), Color.Transparent),
-                startY = padding,
-                endY = padding + chartHeight
-            )
-        )
+            // 計算最大總量以決定縮放比例
+            val dayTotals = trendData.labels.indices.map { i ->
+                trendData.lowRisk.getOrElse(i) { 0f } +
+                trendData.mediumRisk.getOrElse(i) { 0f } +
+                trendData.highRisk.getOrElse(i) { 0f }
+            }
+            val maxTotal = (dayTotals.maxOrNull() ?: 1f).coerceAtLeast(5f) * 1.1f
+            
+            val barWidth = (chartWidth / trendData.labels.size) * 0.6f
+            val spacing = chartWidth / trendData.labels.size
 
-        // 4. 繪製主線條 (帶有發光感)
-        drawPath(
-            path = path,
-            color = primaryColor,
-            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-        )
-
-        // 5. 繪製資料點
-        data.forEachIndexed { index, value ->
-            val x = padding + index * stepX
-            val y = padding + chartHeight - (value / maxVal) * chartHeight * transitionProgress.value
-
-            drawCircle(
-                color = primaryColor.copy(alpha = 0.3f),
-                radius = 6.dp.toPx(),
-                center = Offset(x, y)
-            )
-            drawCircle(
-                color = primaryColor,
-                radius = 3.dp.toPx(),
-                center = Offset(x, y)
-            )
-        }
-
-        // 6. 繪製標籤
-        drawIntoCanvas { canvas ->
-            val paint = Paint().apply {
+            // 1. 繪製背景水平網格與數值標籤
+            val gridLines = 4
+            val labelPaint = android.graphics.Paint().apply {
                 color = android.graphics.Color.GRAY
-                textSize = 10.sp.toPx()
-                textAlign = Paint.Align.CENTER
-                typeface = Typeface.DEFAULT_BOLD
+                textSize = 8.sp.toPx()
+                textAlign = android.graphics.Paint.Align.RIGHT
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
             }
 
-            labels.forEachIndexed { index, label ->
-                val x = padding + index * stepX
-                val y = height - 10.dp.toPx()
-                canvas.nativeCanvas.drawText(label, x, y, paint)
+            for (i in 0..gridLines) {
+                val y = paddingY + (chartHeight / gridLines) * i
+                drawLine(
+                    color = Color.White.copy(alpha = 0.05f),
+                    start = Offset(paddingX, y),
+                    end = Offset(width - paddingX, y),
+                    strokeWidth = 1.dp.toPx()
+                )
+
+                // 繪製 Y 軸數值標籤 (頂、中、底)
+                if (i % 2 == 0) {
+                    val value = (maxTotal * (gridLines - i) / gridLines).toInt()
+                    drawIntoCanvas { canvas ->
+                        canvas.nativeCanvas.drawText(
+                            value.toString(),
+                            paddingX - 8.dp.toPx(),
+                            y + 3.dp.toPx(), // 垂直微調對齊線條
+                            labelPaint
+                        )
+                    }
+                }
+            }
+
+            // 2. 繪製堆疊柱狀圖
+            val valuePaint = android.graphics.Paint().apply {
+                color = android.graphics.Color.WHITE
+                textSize = 9.sp.toPx()
+                textAlign = android.graphics.Paint.Align.CENTER
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+            }
+
+            trendData.labels.forEachIndexed { index, label ->
+                val centerX = paddingX + index * spacing + spacing / 2
+                val lowRaw = trendData.lowRisk.getOrElse(index) { 0f }
+                val medRaw = trendData.mediumRisk.getOrElse(index) { 0f }
+                val highRaw = trendData.highRisk.getOrElse(index) { 0f }
+                
+                val lowVal = lowRaw * transitionProgress.value
+                val medVal = medRaw * transitionProgress.value
+                val highVal = highRaw * transitionProgress.value
+
+                var currentY = paddingY + chartHeight
+                val cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                val gap = 2.dp.toPx()
+
+                // --- 低風險 (底部) ---
+                if (lowVal > 0) {
+                    val segHeight = (lowVal / maxTotal) * chartHeight
+                    drawRoundRect(
+                        color = lowColor.copy(alpha = 0.8f),
+                        topLeft = Offset(centerX - barWidth / 2, currentY - segHeight),
+                        size = Size(barWidth, segHeight),
+                        cornerRadius = cornerRadius
+                    )
+                    // 顯示數字 (當動畫完成且高度足夠時)
+                    if (transitionProgress.value > 0.8f && segHeight > 12.dp.toPx()) {
+                        drawIntoCanvas { it.nativeCanvas.drawText(lowRaw.toInt().toString(), centerX, currentY - segHeight / 2 + 4.dp.toPx(), valuePaint) }
+                    }
+                    currentY -= (segHeight + gap)
+                }
+
+                // --- 中風險 ---
+                if (medVal > 0) {
+                    val segHeight = (medVal / maxTotal) * chartHeight
+                    drawRoundRect(
+                        color = mediumColor.copy(alpha = 0.8f),
+                        topLeft = Offset(centerX - barWidth / 2, currentY - segHeight),
+                        size = Size(barWidth, segHeight),
+                        cornerRadius = cornerRadius
+                    )
+                    if (transitionProgress.value > 0.8f && segHeight > 12.dp.toPx()) {
+                        drawIntoCanvas { it.nativeCanvas.drawText(medRaw.toInt().toString(), centerX, currentY - segHeight / 2 + 4.dp.toPx(), valuePaint) }
+                    }
+                    currentY -= (segHeight + gap)
+                }
+
+                // --- 高風險 (頂部) ---
+                if (highVal > 0) {
+                    val segHeight = (highVal / maxTotal) * chartHeight
+                    drawRoundRect(
+                        color = highColor.copy(alpha = 0.9f),
+                        topLeft = Offset(centerX - barWidth / 2, currentY - segHeight),
+                        size = Size(barWidth, segHeight),
+                        cornerRadius = cornerRadius
+                    )
+                    if (transitionProgress.value > 0.8f && segHeight > 12.dp.toPx()) {
+                        drawIntoCanvas { it.nativeCanvas.drawText(highRaw.toInt().toString(), centerX, currentY - segHeight / 2 + 4.dp.toPx(), valuePaint) }
+                    }
+                }
+
+                // 3. 繪製 X 軸標籤
+                drawIntoCanvas { canvas ->
+                    val paint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.GRAY
+                        textSize = 10.sp.toPx()
+                        textAlign = android.graphics.Paint.Align.CENTER
+                        typeface = android.graphics.Typeface.DEFAULT_BOLD
+                    }
+                    canvas.nativeCanvas.drawText(label, centerX, height, paint)
+                }
             }
         }
     }
 }
 
 @Composable
-fun EmergencyActionSection() {
-    val context = LocalContext.current
-    Button(
-        onClick = { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:165"))) },
-        modifier = Modifier.fillMaxWidth().height(60.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Icon(Icons.Default.Phone, contentDescription = null, tint = Color.White)
-        Spacer(modifier = Modifier.width(12.dp))
-        Text("緊急撥打：165 專線", color = Color.White, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+fun ChartLegendItem(label: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
+        Spacer(Modifier.width(4.dp))
+        Text(label, color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
     }
 }
+

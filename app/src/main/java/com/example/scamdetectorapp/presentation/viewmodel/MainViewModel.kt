@@ -14,7 +14,10 @@ import com.example.scamdetectorapp.data.repository.AntiFraudRepository
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.domain.model.ScanResult
 import com.example.scamdetectorapp.presentation.model.ScanUiModel
-import com.example.scamdetectorapp.data.local.HistoryEntity
+import com.example.scamdetectorapp.presentation.model.DashboardStats
+import com.example.scamdetectorapp.presentation.model.ScamTypeRatio
+import com.example.scamdetectorapp.data.local.entity.HistoryEntity
+import androidx.compose.ui.graphics.Color
 import com.example.scamdetectorapp.manager.PermissionManager
 import com.example.scamdetectorapp.manager.PermissionStatus
 import kotlinx.coroutines.Dispatchers
@@ -104,10 +107,111 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
         }
     }
 
-    // 暴露歷史紀錄 Flow 給 UI
     val allHistory: StateFlow<List<HistoryEntity>> = repository.getAllHistory()
         ?.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
         ?: MutableStateFlow(emptyList())
+
+    // 儀表板統計數據
+    val dashboardStats: StateFlow<DashboardStats> = allHistory.map { history ->
+        val highRiskCount = history.count { it.riskLevel == "HIGH" }
+        
+        // 預設四大類 (與 saveToHistory 保持完全一致)
+        val defaultCategories = listOf("文字", "簡訊", "電話", "圖片")
+        val categoryColors = mapOf(
+            "電話" to Color(0xFF4F7CFF),
+            "簡訊" to Color(0xFFF05A5A),
+            "文字" to Color(0xFFF2C94C),
+            "圖片" to Color(0xFF00C853)
+        )
+
+        // 過濾出高風險的紀錄來計算分佈
+        val highRiskHistory = history.filter { it.riskLevel == "HIGH" }
+        val highRiskTotal = highRiskHistory.size
+        val typesGrouped = highRiskHistory.groupBy { 
+            // 兼容舊資料：將 "URL" 視為 "簡訊"
+            if (it.type == "URL") "簡訊" else it.type 
+        }
+
+        val distribution = defaultCategories.map { category ->
+            val count = typesGrouped[category]?.size ?: 0
+            ScamTypeRatio(
+                label = category,
+                percentage = if (highRiskTotal > 0) (count * 100 / highRiskTotal) else 0,
+                color = categoryColors[category] ?: Color.Gray
+            )
+        }
+
+        // 詐騙電話種類統計
+        val phoneScams = history.filter { it.type == "電話" && it.riskLevel == "HIGH" }
+        val phoneTotal = phoneScams.size
+        
+        val defaultPhoneCategories = listOf("假冒官署", "假投資詐騙", "解除分期付款", "其它")
+        val phoneColors = listOf(Color(0xFFF05A5A), Color(0xFFF2C94C), Color(0xFF4F7CFF), Color.Gray)
+        
+        // 建立一個 Map 來存放統計結果，非預設類別的一律歸入「其它」
+        val phoneCounts = mutableMapOf<String, Int>().withDefault { 0 }
+        phoneScams.forEach {
+            val cat = it.category ?: "其它"
+            if (cat in defaultPhoneCategories) {
+                phoneCounts[cat] = (phoneCounts[cat] ?: 0) + 1
+            } else {
+                phoneCounts["其它"] = (phoneCounts["其它"] ?: 0) + 1
+            }
+        }
+        
+        val phoneDistribution = defaultPhoneCategories.mapIndexed { idx, category ->
+            val count = phoneCounts[category] ?: 0
+            ScamTypeRatio(
+                label = category,
+                percentage = if (phoneTotal > 0) (count * 100 / phoneTotal) else 0,
+                color = phoneColors.getOrElse(idx) { Color.Gray }
+            )
+        }
+
+        // 計算近七天趨勢
+        val trendLabels = mutableListOf<String>()
+        val lowRiskTrend = mutableListOf<Float>()
+        val mediumRiskTrend = mutableListOf<Float>()
+        val highRiskTrend = mutableListOf<Float>()
+
+        val dayFormatter = java.text.SimpleDateFormat("MM/dd", java.util.Locale.getDefault())
+
+        for (i in 6 downTo 0) {
+            val calcCalendar = java.util.Calendar.getInstance()
+            calcCalendar.add(java.util.Calendar.DAY_OF_YEAR, -i)
+            
+            val dayStart = calcCalendar.apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            
+            val dayEnd = dayStart + 24 * 60 * 60 * 1000 - 1
+            
+            val dayHistory = history.filter { it.timestamp in dayStart..dayEnd }
+            
+            trendLabels.add(dayFormatter.format(calcCalendar.time))
+            lowRiskTrend.add(dayHistory.count { it.riskLevel == "SAFE" || it.riskLevel == "LOW" }.toFloat())
+            mediumRiskTrend.add(dayHistory.count { it.riskLevel == "MEDIUM" }.toFloat())
+            highRiskTrend.add(dayHistory.count { it.riskLevel == "HIGH" }.toFloat())
+        }
+
+        DashboardStats(
+            highRiskMessages = highRiskCount,
+            interceptedCount = highRiskCount,
+            learningProgress = (history.size * 5).coerceAtMost(100),
+            reportedCases = highRiskCount,
+            typeDistribution = distribution,
+            phoneTypeDistribution = phoneDistribution,
+            trendData = com.example.scamdetectorapp.presentation.model.RiskTrendData(
+                lowRisk = lowRiskTrend,
+                mediumRisk = mediumRiskTrend,
+                highRisk = highRiskTrend,
+                labels = trendLabels
+            )
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardStats(0, 0, 0, 0, emptyList(), emptyList(), com.example.scamdetectorapp.presentation.model.RiskTrendData(emptyList(), emptyList(), emptyList(), emptyList())))
 
     fun getState(mode: DetectionMode): StateFlow<ScanUiState> = when (mode) {
         DetectionMode.URL -> urlState
@@ -270,7 +374,7 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
     private fun saveToHistory(mode: DetectionMode, input: String, uiModel: ScanUiModel) {
         viewModelScope.launch {
             val type = when (mode) {
-                DetectionMode.URL -> "URL"
+                DetectionMode.URL -> "簡訊"  // 統一存為簡訊
                 DetectionMode.PHONE -> "電話"
                 DetectionMode.TEXT -> "文字"
                 DetectionMode.PRICE -> "圖片"
@@ -284,7 +388,8 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
                 riskLevel = uiModel.riskLevel,
                 content = content,
                 timestamp = System.currentTimeMillis(),
-                score = uiModel.score
+                score = uiModel.score,
+                category = uiModel.detailMap?.get("電話類型")?.toString()
             )
             repository.saveHistory(history)
         }

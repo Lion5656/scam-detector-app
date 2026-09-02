@@ -1,4 +1,4 @@
-package com.example.scamdetectorapp.data.local
+package com.example.scamdetectorapp.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -10,5 +10,6 @@ data class HistoryEntity(
     val riskLevel: String, // LOW, MEDIUM, HIGH, UNKNOWN, SAFE
     val content: String,
     val timestamp: Long,
-    val score: Int
+    val score: Int,
+    val category: String? = null
 )

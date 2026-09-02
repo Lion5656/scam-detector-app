@@ -8,7 +8,6 @@ import com.example.scamdetectorapp.data.remote.RetrofitClient
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.domain.model.ScanResult
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -16,8 +15,8 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
 import androidx.core.net.toUri
-import com.example.scamdetectorapp.data.local.AppDatabase
-import com.example.scamdetectorapp.data.local.HistoryEntity
+import com.example.scamdetectorapp.data.local.db.AppDatabase
+import com.example.scamdetectorapp.data.local.entity.HistoryEntity
 import kotlinx.coroutines.flow.Flow
 
 class AntiFraudRepository(private val context: Context? = null) {
@@ -36,9 +35,8 @@ class AntiFraudRepository(private val context: Context? = null) {
     /**
      * 取得最新 5 筆檢測紀錄
      */
-    fun getRecentScans(): kotlinx.coroutines.flow.Flow<List<com.example.scamdetectorapp.data.local.DetectionEntity>> {
-        val db = com.example.scamdetectorapp.data.local.AppDatabase.getDatabase(context ?: throw Exception("Context is required for DB"))
-        return db.detectionDao().getRecentScans()
+    fun getRecentScans(): Flow<List<HistoryEntity>>? {
+        return historyDao?.getRecentHistory(5)
     }
 
     suspend fun scan(mode: DetectionMode, input: String): Result<ScanResult> = withContext(Dispatchers.IO) {
