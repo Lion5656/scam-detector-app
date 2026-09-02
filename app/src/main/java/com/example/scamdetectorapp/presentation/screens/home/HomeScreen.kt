@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -43,8 +44,15 @@ import com.example.scamdetectorapp.data.repository.NewsType
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import com.example.scamdetectorapp.service.MonitorService
 import com.example.scamdetectorapp.ui.theme.*
+import com.airbnb.lottie.compose.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
+import com.example.scamdetectorapp.presentation.viewmodel.RecentScansUiState
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun HomeScreen(
@@ -54,14 +62,12 @@ fun HomeScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
-    val isProtectionEnabled by viewModel.isProtectionEnabled.collectAsStateWithLifecycle()
-    
     val permissionsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { _ ->
         // 請求基礎權限後，務必先刷新狀態再判斷
         viewModel.updatePermissionStatus()
-        
+
         // 使用協程確保在狀態更新後再檢查（或是直接判斷，因為 update 是在背景跑，
         // 但 hasDisplayPermissions 讀取的是 Flow 的最新值，這裏可能會有極短暫的同步落差）
         scope.launch {
@@ -194,10 +200,10 @@ fun HomeScreen(
                             }
                         }
                     }
-                    
+
                     // 只有在權限滿足時才執行切換邏輯
                     viewModel.toggleProtectionEnabled(checked)
-                    
+
                     val intent = Intent(context, MonitorService::class.java)
                     if (checked) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)
@@ -237,41 +243,23 @@ fun HomeScreen(
 fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
     val coroutineScope = rememberCoroutineScope()
     val infiniteTransition = rememberInfiniteTransition(label = "robot")
-    
-    // --- 1. 基礎狀態 ---
     var isCharging by remember { mutableStateOf(false) }
     var holographicText by remember { mutableStateOf("") }
     val shockwaveScale = remember { Animatable(0f) }
     val shockwaveAlpha = remember { Animatable(0f) }
 
-    // --- 2. 基礎動畫 ---
-    val floatAnim by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 10.dp.value,
-        animationSpec = infiniteRepeatable(tween(2500, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "float"
-    )
-    val eyesGlow by infiniteTransition.animateFloat(
-        initialValue = 0.4f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "glow"
-    )
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(4000, easing = LinearEasing)), label = "rotate"
+    // 加載新版 Lottie 機器人動畫
+    val composition by rememberLottieComposition(
+        LottieCompositionSpec.Asset("Robot assistant  Online manager.lottie")
     )
 
-    // --- 3. 數據掃描線動畫 ---
-    val scanLinePos by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = keyframes { durationMillis = 4000; 0f at 0; 0f at 2000; 1f at 3000; 1f at 4000 },
-            repeatMode = RepeatMode.Restart
-        ), label = "scan"
-    )
+    val floatAnim by infiniteTransition.animateFloat(0f, 10.dp.value, infiniteRepeatable(tween(2500, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "float")
+    val rotation by infiniteTransition.animateFloat(0f, 360f, infiniteRepeatable(tween(8000, easing = LinearEasing)), label = "rotate")
 
-    // --- 4. 隨機全息提示邏輯 ---
     LaunchedEffect(Unit) {
-        val messages = listOf("SCANNING...", "SECURED", "STAY ALERT", "AI ACTIVE", "THREAT 0%")
+        val messages = listOf("AI ACTIVE", "ANALYZING", "SCANNING...", "MANAGER ON", "SECURED")
         while (true) {
-            delay((3000..7000).random().toLong())
+            delay((4000..8000).random().toLong())
             holographicText = messages.random()
             delay(2000)
             holographicText = ""
@@ -285,14 +273,10 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
                 if (!isCharging) {
                     isCharging = true
                     coroutineScope.launch {
-                        // 點擊特效：能量波
-                        launch {
-                            shockwaveScale.snapTo(0f)
-                            shockwaveAlpha.snapTo(0.6f)
-                            launch { shockwaveScale.animateTo(2f, tween(500, easing = LinearOutSlowInEasing)) }
-                            launch { shockwaveAlpha.animateTo(0f, tween(500)) }
-                        }
-                        // 充能過場延遲
+                        shockwaveScale.snapTo(0f)
+                        shockwaveAlpha.snapTo(0.6f)
+                        launch { shockwaveScale.animateTo(2.5f, tween(600, easing = LinearOutSlowInEasing)) }
+                        launch { shockwaveAlpha.animateTo(0f, tween(600)) }
                         delay(600)
                         onNavigate()
                         isCharging = false
@@ -301,91 +285,36 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
             },
         contentAlignment = Alignment.Center
     ) {
-        // --- 特效層：能量波 ---
+        // 點擊時的衝擊波特效
         Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(color = Color(0xFF00E5FF), radius = (size.minDimension / 2) * shockwaveScale.value, alpha = shockwaveAlpha.value, style = Stroke(width = 2.dp.toPx()))
+        }
+
+        // 外圍全息旋轉環
+        Canvas(modifier = Modifier.size(85.dp).graphicsLayer { rotationZ = rotation }) {
             drawCircle(
-                color = ScamCyan,
-                radius = (size.minDimension / 2) * shockwaveScale.value,
-                alpha = shockwaveAlpha.value,
-                style = Stroke(width = 2.dp.toPx())
+                brush = Brush.sweepGradient(listOf(Color.Transparent, Color(0xFF4F7CFF).copy(alpha = 0.3f), Color.Transparent)),
+                style = Stroke(width = 1.5.dp.toPx())
             )
         }
 
-        // --- 特效層：全息提示 ---
+        // 新版 Lottie 機器人助理
+        LottieAnimation(
+            composition = composition,
+            iterations = LottieConstants.IterateForever,
+            modifier = Modifier.size(75.dp),
+            contentScale = ContentScale.Fit
+        )
+
+        // 浮動的全息文字
         if (holographicText.isNotEmpty()) {
             Text(
                 text = holographicText,
-                modifier = Modifier.offset(y = (-45).dp),
-                color = VibrantBlue.copy(alpha = 0.8f),
+                modifier = Modifier.offset(y = (-50).dp),
+                color = Color(0xFF4F7CFF).copy(alpha = 0.9f),
                 fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                style = TextStyle(shadow = Shadow(ElectricBlue, blurRadius = 8f))
-            )
-        }
-
-        // --- 核心層：掃描環 ---
-        Canvas(modifier = Modifier.size(70.dp).graphicsLayer { rotationZ = rotation }) {
-            drawCircle(
-                brush = Brush.sweepGradient(listOf(Color.Transparent, ElectricBlue.copy(alpha = 0.4f), Color.Transparent)),
-                style = Stroke(width = 2.dp.toPx())
-            )
-        }
-
-        // --- 核心層：機器人主體 ---
-        Surface(
-            modifier = Modifier.size(54.dp),
-            color = DeepDarkBlue,
-            shape = RoundedCornerShape(16.dp),
-            border = androidx.compose.foundation.BorderStroke(
-                width = if (isCharging) 2.dp else 1.5.dp,
-                color = if (isCharging) Color.White else ElectricBlue.copy(alpha = 0.7f)
-            )
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                // 數據掃描雷射
-                if (scanLinePos > 0f && scanLinePos < 1f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .offset(y = (54 * scanLinePos).dp)
-                            .background(Brush.horizontalGradient(listOf(Color.Transparent, BrightRed.copy(alpha = 0.5f), Color.Transparent)))
-                    )
-                }
-
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    // 電子眼睛 (充能時變色)
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        repeat(2) {
-                            Box(
-                                modifier = Modifier
-                                    .size(12.dp, 5.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isCharging) Color.White else ScamCyan.copy(alpha = eyesGlow))
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    // 下方數據條
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp, 2.dp)
-                            .background(ElectricBlue.copy(alpha = 0.3f))
-                    )
-                }
-            }
-        }
-
-        // --- 特效層：充能外圈 ---
-        if (isCharging) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(85.dp),
-                color = Color.White,
-                strokeWidth = 2.dp
+                fontWeight = FontWeight.ExtraBold,
+                style = TextStyle(shadow = Shadow(Color(0xFF4F7CFF), blurRadius = 8f))
             )
         }
     }
@@ -394,7 +323,7 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
 @Composable
 private fun StartDetectionCard(onClick: () -> Unit) {
     val infiniteTransition = rememberInfiniteTransition(label = "card_scan")
-    
+
     // 掃描線位移偏量
     val scanProgress by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -438,12 +367,12 @@ private fun StartDetectionCard(onClick: () -> Unit) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val width = size.width
                 val height = size.height
-                
+
                 // 擴大位移範圍使大面積光束
                 val progress = scanProgress * 2.5f - 0.75f
                 val xPos = width * progress
                 val yPos = height * progress
-                
+
                 val scanBrush = Brush.linearGradient(
                     0.2f to Color.Transparent,
                     0.5f to Color.White.copy(alpha = 0.15f),
@@ -451,7 +380,7 @@ private fun StartDetectionCard(onClick: () -> Unit) {
                     start = Offset(xPos - 400f, yPos - 400f),
                     end = Offset(xPos + 400f, yPos + 400f)
                 )
-                
+
                 drawRect(
                     brush = scanBrush,
                     size = size
@@ -599,7 +528,6 @@ private fun ProtectionFeatureCard(
                 )
             }
 
-            // 三星風格 Switch
             Switch(
                 checked = isEnabled,
                 onCheckedChange = onCheckedChange,

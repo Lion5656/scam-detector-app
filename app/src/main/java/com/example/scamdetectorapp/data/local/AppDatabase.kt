@@ -5,8 +5,9 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [HistoryEntity::class], version = 1, exportSchema = false)
+@Database(entities = [DetectionEntity::class, HistoryEntity::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun detectionDao(): DetectionDao
     abstract fun historyDao(): HistoryDao
 
     companion object {
@@ -18,7 +19,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "scam_detector_db"
+                    "scam_guard_db"
                 ).build()
                 INSTANCE = instance
                 instance

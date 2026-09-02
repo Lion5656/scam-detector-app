@@ -33,6 +33,14 @@ class AntiFraudRepository(private val context: Context? = null) {
         return historyDao?.getAllHistory()
     }
 
+    /**
+     * 取得最新 5 筆檢測紀錄
+     */
+    fun getRecentScans(): kotlinx.coroutines.flow.Flow<List<com.example.scamdetectorapp.data.local.DetectionEntity>> {
+        val db = com.example.scamdetectorapp.data.local.AppDatabase.getDatabase(context ?: throw Exception("Context is required for DB"))
+        return db.detectionDao().getRecentScans()
+    }
+
     suspend fun scan(mode: DetectionMode, input: String): Result<ScanResult> = withContext(Dispatchers.IO) {
         try {
             val result = when (mode) {

@@ -55,6 +55,7 @@ import com.example.scamdetectorapp.presentation.components.VibrantIcons
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import com.example.scamdetectorapp.presentation.viewmodel.ScanUiState
 import com.example.scamdetectorapp.ui.theme.*
+import com.example.scamdetectorapp.util.LottieLoadingView
 
 enum class ScreenStep { INPUT, SCANNING, RESULT, ERROR }
 
@@ -93,7 +94,7 @@ fun GenericDetectionFlow(
         DetectionMode.TEXT -> 300
         DetectionMode.URL -> 100
         DetectionMode.PHONE -> 20
-        DetectionMode.PRICE -> 100 
+        DetectionMode.PRICE -> 100
     }
     val stateFlow = viewModel.getState(mode)
     val uiState by stateFlow.collectAsStateWithLifecycle()
@@ -189,9 +190,9 @@ fun GenericDetectionFlow(
                         currentMode = mode,
                         onSwitchMode = onSwitchMode,
                         icon = icon,
-                        onExit = { 
+                        onExit = {
                             reset()
-                            onExitFlow() 
+                            onExitFlow()
                         }
                     )
             } else {
@@ -218,9 +219,9 @@ fun GenericDetectionFlow(
                     isMultiLine = isMultiLine,
                     currentMode = mode,
                     onSwitchMode = onSwitchMode,
-                    onExit = { 
+                    onExit = {
                         reset()
-                        onExitFlow() 
+                        onExitFlow()
                     }
                 )
             }
@@ -285,8 +286,8 @@ fun ErrorScreen(title: String, message: String, onBack: () -> Unit) {
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_back_less_than),
-                    contentDescription = "返回輸入", 
-                    tint = textWhite, 
+                    contentDescription = "返回輸入",
+                    tint = textWhite,
                     modifier = Modifier.size(36.dp)
                 )
             }
@@ -310,9 +311,9 @@ fun ErrorScreen(title: String, message: String, onBack: () -> Unit) {
                 Text(message, color = textGrey, textAlign = TextAlign.Center)
             }
         }
-        
+
         Spacer(modifier = Modifier.height(60.dp)) // 增加間距將按鈕往上提
-        
+
         Button(
             onClick = onBack,
             modifier = Modifier
@@ -345,7 +346,7 @@ fun InputScreen(
     val focusManager = LocalFocusManager.current
     val textWhite = MaterialTheme.colorScheme.onBackground
     val textGrey = colorResource(R.color.scam_text_grey)
-    val panelColor = PanelColor 
+    val panelColor = PanelColor
     val focusRequester = remember { FocusRequester() }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -371,12 +372,12 @@ fun InputScreen(
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_back_less_than),
-                        contentDescription = "返回", 
+                        contentDescription = "返回",
                         tint = textWhite,
                         modifier = Modifier.size(36.dp)
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.width(16.dp))
 
                 Text(
@@ -420,19 +421,19 @@ fun InputScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = textWhite)
-                    
+
                     Spacer(modifier = Modifier.height(24.dp))
 
                     TextField(
                         value = value,
                         onValueChange = onValueChange,
-                        placeholder = { 
+                        placeholder = {
                             Text(
-                                placeholder, 
+                                placeholder,
                                 color = textGrey.copy(alpha = 0.6f),
                                 textAlign = if (isMultiLine) TextAlign.Start else TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
-                            ) 
+                            )
                         },
                         trailingIcon = {
                             if (value.text.isNotEmpty()) {
@@ -503,7 +504,7 @@ fun InputScreen(
                     .height(56.dp),
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = SystemBlue, 
+                    containerColor = SystemBlue,
                     disabledContainerColor = panelColor
                 )
             ) {
@@ -535,7 +536,7 @@ fun PriceInputScreen(
 ) {
     val textWhite = MaterialTheme.colorScheme.onBackground
     val textGrey = colorResource(R.color.scam_text_grey)
-    val panelColor = PanelColor 
+    val panelColor = PanelColor
     var showSourceDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -584,12 +585,12 @@ fun PriceInputScreen(
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_back_less_than),
-                        contentDescription = "返回", 
+                        contentDescription = "返回",
                         tint = textWhite,
                         modifier = Modifier.size(36.dp)
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.width(16.dp))
 
                 Text(
@@ -637,9 +638,9 @@ fun PriceInputScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = title, 
-                            fontSize = 22.sp, 
-                            fontWeight = FontWeight.Bold, 
+                            text = title,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
                             color = textWhite
                         )
                         if (imageUri != null) {
@@ -658,7 +659,7 @@ fun PriceInputScreen(
                             }
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Surface(
@@ -700,9 +701,9 @@ fun PriceInputScreen(
                             } else {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(
-                                        Icons.Default.CameraAlt, 
-                                        contentDescription = null, 
-                                        tint = SystemBlue.copy(alpha = 0.6f), 
+                                        Icons.Default.CameraAlt,
+                                        contentDescription = null,
+                                        tint = SystemBlue.copy(alpha = 0.6f),
                                         modifier = Modifier.size(40.dp)
                                     )
                                     Spacer(Modifier.height(12.dp))
@@ -761,15 +762,15 @@ fun PriceInputScreen(
             onDismissRequest = { showSourceDialog = false },
             containerColor = panelColor,
             shape = RoundedCornerShape(32.dp),
-            title = { 
+            title = {
                 Text(
-                    "選擇圖片來源", 
-                    color = textWhite, 
+                    "選擇圖片來源",
+                    color = textWhite,
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 22.sp,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center
-                ) 
+                )
             },
             text = {
                 Column(
@@ -844,14 +845,7 @@ fun ScanningScreen(onCancel: () -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(120.dp),
-                color = primaryColor,
-                strokeWidth = 8.dp
-            )
-            Icon(Icons.Default.Search, contentDescription = null, tint = primaryColor, modifier = Modifier.size(40.dp))
-        }
+        LottieLoadingView(size = 180.dp) // 使用新版 Lottie 載入動畫
 
         Spacer(modifier = Modifier.height(32.dp))
         Text("正在分析威脅...", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
