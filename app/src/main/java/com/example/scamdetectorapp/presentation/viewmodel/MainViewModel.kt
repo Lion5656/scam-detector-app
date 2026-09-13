@@ -466,21 +466,20 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
             else -> riskLevel.uppercase()
         }
 
-        var score = result.score?.toIntOrNull() ?: when (rLevel.uppercase()) {
+        val baseScore = result.score?.toIntOrNull() ?: when (rLevel.uppercase()) {
             "HIGH" -> 85
             "MEDIUM" -> 60
             "LOW" -> 20
             "SAFE" -> 10
-            "NODATA" -> 0
             else -> 0
         }
 
-        if (mode == DetectionMode.PHONE) {
+        val calculatedScore = if (mode == DetectionMode.PHONE) {
             val reports = result.detailInfo?.get("回報次數")?.toString()?.toIntOrNull() ?: 0
-            if (reports > 0) {
-                score = (score + (reports * 5)).coerceAtMost(100)
-            }
-        }
+            if (reports > 0) (baseScore + reports * 5).coerceAtMost(100) else baseScore
+        } else baseScore
+
+        val finalScore = if (rLevel.uppercase() == "UNKNOWN") 0 else calculatedScore
 
         when (rLevel.uppercase()) {
             "HIGH", "MEDIUM", "LOW" -> {
@@ -504,14 +503,23 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
             }
             else -> {
                 title = "未知"
-                reasons.add("暫無此紀錄")
+                if (mode != DetectionMode.PHONE) {
+                    reasons.add("風險等級: $rLevel")
+                    result.threatType?.takeIf { it.isNotEmpty() }?.let { reasons.add("類型: $it") }
+                    result.suggestion?.takeIf { it.isNotEmpty() }?.let { reasons.add(it) }
+                    if (reasons.size == 1) {
+                        reasons.add("暫無此紀錄")
+                    }
+                } else {
+                    reasons.add("暫無此紀錄")
+                }
             }
         }
 
         return ScanUiModel(
             isSafe = (rLevel == "SAFE" || rLevel == "NODATA"),
             riskLevel = rLevel,
-            score = score,
+            score = finalScore,
             title = title,
             reasons = reasons,
             mode = mode,

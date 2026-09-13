@@ -52,8 +52,9 @@ fun FraudResultScreen(
     )
     var selectedType by remember { mutableStateOf("") }
 
-    // 根據分數判定風險等級、顏色、圖示與嚴重度短標籤：全頁共用同一語意色
-    val isUnknown = result.score == 0 && result.riskLevel == "UNKNOWN"
+    // 根據風險等級與分數判定風險等級、顏色、圖示與嚴重度短標籤：全頁共用同一語意色
+    val isUnknown = result.riskLevel.equals("UNKNOWN", ignoreCase = true)
+
     data class RiskStatus(
         val text: String,
         val color: Color,
@@ -71,7 +72,7 @@ fun FraudResultScreen(
     val statusColor = status.color
     val statusIcon = status.icon
     val severityLabel = status.severity
-    val isLowRisk = !isUnknown && result.score <= 39
+    val isLowRisk = !isUnknown && result.score in 1..39
 
     val textWhite = MaterialTheme.colorScheme.onBackground
     val textGrey = colorResource(R.color.scam_text_grey)
@@ -90,7 +91,7 @@ fun FraudResultScreen(
                 appendLine("\n分析詳情：")
                 result.reasons.forEach { appendLine("• $it") }
             }
-            appendLine("\n風險指數：${result.score}%")
+            appendLine("\n風險指數：${if (isUnknown) "未知" else "${result.score}%"}")
             appendLine("\n#防詐騙 #ScamGuard #安全守護")
         }
 
@@ -133,14 +134,8 @@ fun FraudResultScreen(
                     }
                     
                     Spacer(Modifier.width(12.dp))
-                    
-                    val modeLabel = when (result.mode) {
-                        DetectionMode.URL -> "網址"
-                        DetectionMode.PHONE -> "電話"
-                        DetectionMode.TEXT -> "簡訊"
-                        DetectionMode.PRICE -> "購物"
-                    }
-                    Text("檢測結果・$modeLabel", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
+
+                    Text("檢測結果", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
 
                     Spacer(Modifier.weight(1f))
                     
@@ -162,6 +157,7 @@ fun FraudResultScreen(
                     trackColor = statusColor.copy(alpha = 0.15f),
                     labelColor = textGrey,
                     useGradient = !isUnknown,
+                    isUnknown = isUnknown,
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
 
@@ -185,11 +181,11 @@ fun FraudResultScreen(
                 Spacer(Modifier.height(24.dp))
 
                 // Details Section
-                if (result.riskLevel != "UNKNOWN") {
+                if (!result.detailMap.isNullOrEmpty()) {
                     Text("詳細資訊", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textWhite)
                     Spacer(Modifier.height(16.dp))
 
-                    result.detailMap?.let { details ->
+                    result.detailMap.let { details ->
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             details.toList().forEach { pair ->
                                 Row(

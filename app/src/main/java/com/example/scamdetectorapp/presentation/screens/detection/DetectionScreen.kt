@@ -134,12 +134,6 @@ fun GenericDetectionFlow(
 
     var localTextValue by remember(mode) { mutableStateOf(TextFieldValue(viewModelInput)) }
 
-    LaunchedEffect(viewModelInput) {
-        if (localTextValue.text != viewModelInput) {
-            localTextValue = TextFieldValue(viewModelInput)
-        }
-    }
-
     DisposableEffect(mode) {
         onDispose {
             focusManager.clearFocus()

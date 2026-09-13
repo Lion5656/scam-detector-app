@@ -44,8 +44,9 @@ fun PriceResultScreen(
     // 購物檢測維持原本的元件色，不隨其他頁面的新配色調整
     val componentColor = Color(0xFF1E1E1C)
 
-    // 根據分數判定風險等級、顏色與圖示：與其他結果頁共用同一套語意色邏輯
-    val isUnknown = result.score == 0 && result.riskLevel == "UNKNOWN"
+    // 根據風險等級與分數判定風險等級、顏色與圖示：與其他結果頁共用同一套語意色邏輯
+    val isUnknown = result.riskLevel.equals("UNKNOWN", ignoreCase = true)
+
     val statusData = when {
         isUnknown -> Triple("未知", colorResource(id = R.color.scam_neutral_gray), Icons.Default.Info)
         result.score > 79 -> Triple("高風險威脅", colorResource(id = R.color.scam_risk_red), Icons.Default.Warning)
@@ -103,6 +104,7 @@ fun PriceResultScreen(
                 trackColor = statusColor.copy(alpha = 0.15f),
                 labelColor = textGrey,
                 useGradient = !isUnknown,
+                isUnknown = isUnknown,
                 modifier = Modifier.padding(vertical = 16.dp)
             )
 

@@ -173,6 +173,8 @@ fun HistoryCard(
         else -> Color(0xFF64748B)      // 石板冷藍
     }
 
+    val displayItem = item.content.replace(Regex("[\\r\\n]+"), "").trim()
+
     val dateStr = remember(item.timestamp) {
         val dateFormat = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault()).apply {
             timeZone = TimeZone.getTimeZone("GMT+8") // 指定 UTC+8 時區顯示
@@ -227,7 +229,7 @@ fun HistoryCard(
             // 中間：內容與日期
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (item.content.length > 25) item.content.take(25) + "..." else item.content,
+                    text = displayItem,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,

@@ -55,14 +55,19 @@ fun RiskScoreDashboard(
     gaugeSize: Dp = 180.dp,
     strokeWidth: Dp = 14.dp,
     useGradient: Boolean = true,
+    isUnknown: Boolean = false
 ) {
     val animatedScore = remember { Animatable(0f) }
 
-    LaunchedEffect(score) {
-        animatedScore.animateTo(
-            targetValue = score.toFloat().coerceIn(0f, maxValue.toFloat()),
-            animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing)
-        )
+    LaunchedEffect(score, isUnknown) {
+        if (!isUnknown) {
+            animatedScore.animateTo(
+                targetValue = score.toFloat().coerceIn(0f, maxValue.toFloat()),
+                animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing)
+            )
+        } else {
+            animatedScore.snapTo(0f)
+        }
     }
 
     Column(
@@ -129,13 +134,13 @@ fun RiskScoreDashboard(
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = animatedScore.value.roundToInt().toString(),
+                    text = if (isUnknown) "未知" else animatedScore.value.roundToInt().toString(),
                     fontSize = 44.sp,
                     fontWeight = FontWeight.Bold,
                     color = color
                 )
                 Text(
-                    text = "$caption / $maxValue",
+                    text = if (isUnknown) caption else "$caption / $maxValue",
                     fontSize = 12.sp,
                     color = labelColor
                 )
