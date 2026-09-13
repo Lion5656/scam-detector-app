@@ -229,7 +229,7 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(40.dp))
 
             // --- 防詐新聞預覽 ---
-            NewsPreviewSection(onClick = { onNavigateTo("新聞") })
+            NewsPreviewSection(onClick = { onNavigateTo("新聞") }, viewModel = viewModel)
 
             Spacer(modifier = Modifier.height(140.dp))
         }
@@ -543,14 +543,19 @@ private fun ProtectionFeatureCard(
 
 
 @Composable
-private fun NewsPreviewSection(onClick: () -> Unit) {
-    val previewNews = NewsRepository.getPreviewNews()
+private fun NewsPreviewSection(onClick: () -> Unit, viewModel: MainViewModel) {
+    // 改為從 ViewModel 獲取即時新聞
+    val newsList by viewModel.latestNews.collectAsStateWithLifecycle()
+    
+    // 如果目前沒資料，先用 Repository 的預設資料
+    val displayNews = if (newsList.isEmpty()) NewsRepository.getPreviewNews() else newsList.take(2)
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("防詐資訊專區", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
             TextButton(onClick = onClick) { Text("查看更多", color = VibrantBlue, fontSize = 14.sp) }
         }
-        previewNews.forEachIndexed { index, news ->
+        displayNews.forEachIndexed { index, news ->
             if (index > 0) Spacer(modifier = Modifier.height(10.dp))
             Surface(
                 onClick = onClick,

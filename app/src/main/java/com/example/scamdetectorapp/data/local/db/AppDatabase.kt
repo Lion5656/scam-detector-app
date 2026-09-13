@@ -21,7 +21,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "scam_guard_db"
-                ).fallbackToDestructiveMigration(true)
+                ).fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

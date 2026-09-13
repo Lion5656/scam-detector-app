@@ -48,22 +48,43 @@ object RetrofitClient {
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
+    /**
+     * 一個完全乾淨的 OkHttpClient，不帶任何自定義 Header，
+     * 專門用於政府開放資料 API 或其他第三方資源。
+     */
+    private val cleanHttpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .build()
+
     val instance: AntiFraudApi by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .client(okHttpClient)
+            .client(okHttpClient) // 主線 API 需要 API Key
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(AntiFraudApi::class.java)
     }
 
     /**
-     * 165 政府開放資料專用的 Retrofit 實例 (使用不同 BASE_URL)
+     * Cloudflare Workers 專用的 Retrofit 實例
+     */
+    val newsApiService: NewsApiService by lazy {
+        Retrofit.Builder()
+            .baseUrl("https://purple-cell-7bda.xlxlxl468.workers.dev/")
+            .client(cleanHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(NewsApiService::class.java)
+    }
+
+    /**
+     * 165 政府開放資料專用的 Retrofit 實例 (使用不同的 BaseURL 且不帶 API Key)
      */
     val oneSixFiveInstance: OneSixFiveApi by lazy {
         Retrofit.Builder()
             .baseUrl("https://od.moi.gov.tw/")
-            .client(okHttpClient)
+            .client(cleanHttpClient) // 使用乾淨的連線器，避免被政府伺服器擋掉
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(OneSixFiveApi::class.java)

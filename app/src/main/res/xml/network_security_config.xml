@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">purple-cell-7bda.xlxlxl468.workers.dev</domain>
+        <domain includeSubdomains="true">od.moi.gov.tw</domain>
+        <domain includeSubdomains="true">www.mygopen.com</domain>
+        <domain includeSubdomains="true">news.google.com</domain>
     </domain-config>
 </network-security-config>

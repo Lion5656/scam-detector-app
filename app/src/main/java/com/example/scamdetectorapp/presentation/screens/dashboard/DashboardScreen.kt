@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -33,10 +34,24 @@ import androidx.compose.ui.unit.sp
 import com.example.scamdetectorapp.presentation.model.*
 import com.airbnb.lottie.compose.*
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.res.painterResource
 import com.example.scamdetectorapp.R
+import com.patrykandpatrick.vico.compose.cartesian.*
+import com.patrykandpatrick.vico.compose.cartesian.axis.*
+import com.patrykandpatrick.vico.compose.cartesian.layer.*
+import com.patrykandpatrick.vico.compose.cartesian.data.*
+import com.patrykandpatrick.vico.compose.cartesian.marker.*
+import com.patrykandpatrick.vico.compose.common.*
+import com.patrykandpatrick.vico.compose.common.component.*
+import com.patrykandpatrick.vico.compose.cartesian.layer.ColumnCartesianLayer
+import com.patrykandpatrick.vico.compose.common.data.ExtraStore
 
 @Composable
 fun DashboardScreen(
@@ -114,7 +129,6 @@ fun DashboardScreen(
 fun RiskDashboardTab(viewModel: MainViewModel, scrollState: ScrollState) {
     val scamPrimary = Color(0xFF4F7CFF)
     val scamRed = Color(0xFFF05A5A)
-    val scamYellow = Color(0xFFF2C94C)
     val surfaceDark = Color(0xFF171E26)
 
     val stats by viewModel.dashboardStats.collectAsStateWithLifecycle()
@@ -225,7 +239,9 @@ fun RiskDashboardTab(viewModel: MainViewModel, scrollState: ScrollState) {
                 } else {
                     stats.phoneTypeDistribution.forEachIndexed { index, ratio ->
                         SimpleProgressBar(ratio)
-                        if (index < stats.phoneTypeDistribution.size - 1) Spacer(Modifier.height(16.dp))
+                        if (index < stats.phoneTypeDistribution.size - 1) {
+                            Spacer(Modifier.height(16.dp))
+                        }
                     }
                 }
             }
@@ -299,9 +315,21 @@ fun MultiRiskTrendChart(
     trendData: RiskTrendData,
     modifier: Modifier = Modifier
 ) {
-    val lowColor = Color(0xFF00C853)
-    val mediumColor = Color(0xFFF2C94C)
-    val highColor = Color(0xFFF05A5A)
+    // 固定的彩虹色系 (僅用於日期文字)
+    val dayLabelColors = listOf(
+        Color(0xFFF05A5A), // Mon - 紅
+        Color(0xFFFFA905), // Tue - 橙
+        Color(0xFFF2C94C), // Wed - 黃
+        Color(0xFF00C853), // Thu - 綠
+        Color(0xFF4F7CFF), // Fri - 藍
+        Color(0xFF4B0082), // Sat - 靛
+        Color(0xFFA78BFA)  // Sun - 紫
+    )
+
+    // 風險等級顏色 (用於長條圖)
+    val riskHighColor = Color(0xFFF05A5A)   // 高風險 - 紅
+    val riskMediumColor = Color(0xFFF2C94C) // 中風險 - 黃
+    val riskLowColor = Color(0xFF00C853)    // 低風險 - 綠
 
     val transitionProgress = remember { Animatable(0f) }
     LaunchedEffect(trendData) {
@@ -309,50 +337,45 @@ fun MultiRiskTrendChart(
     }
 
     Column(modifier = modifier) {
-        // 圖例
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("每日風險分佈", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("本週風險筆數分佈", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            
+            // 右上角圖例
             Row(verticalAlignment = Alignment.CenterVertically) {
-                ChartLegendItem("高", highColor)
+                ChartLegendItem("高 ", riskHighColor)
                 Spacer(Modifier.width(8.dp))
-                ChartLegendItem("中", mediumColor)
+                ChartLegendItem("中 ", riskMediumColor)
                 Spacer(Modifier.width(8.dp))
-                ChartLegendItem("低", lowColor)
+                ChartLegendItem("低 ", riskLowColor)
             }
         }
 
         Canvas(modifier = Modifier.weight(1f).fillMaxWidth()) {
             val width = size.width
             val height = size.height
-            val paddingX = 40.dp.toPx()
+            val paddingX = 20.dp.toPx()
             val paddingY = 20.dp.toPx()
             val chartWidth = width - paddingX * 2
             val chartHeight = height - paddingY * 2
 
-            // 計算最大總量以決定縮放比例
-            val dayTotals = trendData.labels.indices.map { i ->
-                trendData.lowRisk.getOrElse(i) { 0f } +
-                trendData.mediumRisk.getOrElse(i) { 0f } +
-                trendData.highRisk.getOrElse(i) { 0f }
+            // 計算每日總筆數
+            val dailyTotals = trendData.labels.indices.map { i ->
+                ((trendData.lowRisk.getOrNull(i) ?: 0f) +
+                 (trendData.mediumRisk.getOrNull(i) ?: 0f) +
+                 (trendData.highRisk.getOrNull(i) ?: 0f)).toInt()
             }
-            val maxTotal = (dayTotals.maxOrNull() ?: 1f).coerceAtLeast(5f) * 1.1f
+            // 決定最大縮放比例，預設至少顯示到 5
+            val maxTotal = (dailyTotals.maxOrNull() ?: 1).coerceAtLeast(5).toFloat() * 1.2f
             
-            val barWidth = (chartWidth / trendData.labels.size) * 0.6f
-            val spacing = chartWidth / trendData.labels.size
+            val barWidth = (chartWidth / 7) * 0.5f
+            val spacing = chartWidth / 7
 
-            // 1. 繪製背景水平網格與數值標籤
+            // 1. 繪製背景水平線
             val gridLines = 4
-            val labelPaint = android.graphics.Paint().apply {
-                color = android.graphics.Color.GRAY
-                textSize = 8.sp.toPx()
-                textAlign = android.graphics.Paint.Align.RIGHT
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
-            }
-
             for (i in 0..gridLines) {
                 val y = paddingY + (chartHeight / gridLines) * i
                 drawLine(
@@ -361,97 +384,63 @@ fun MultiRiskTrendChart(
                     end = Offset(width - paddingX, y),
                     strokeWidth = 1.dp.toPx()
                 )
-
-                // 繪製 Y 軸數值標籤 (頂、中、底)
-                if (i % 2 == 0) {
-                    val value = (maxTotal * (gridLines - i) / gridLines).toInt()
-                    drawIntoCanvas { canvas ->
-                        canvas.nativeCanvas.drawText(
-                            value.toString(),
-                            paddingX - 8.dp.toPx(),
-                            y + 3.dp.toPx(), // 垂直微調對齊線條
-                            labelPaint
-                        )
-                    }
-                }
             }
 
-            // 2. 繪製堆疊柱狀圖
-            val valuePaint = android.graphics.Paint().apply {
+            // 2. 準備文字畫筆
+            val textPaint = android.graphics.Paint().apply {
                 color = android.graphics.Color.WHITE
-                textSize = 9.sp.toPx()
+                textSize = 10.sp.toPx()
                 textAlign = android.graphics.Paint.Align.CENTER
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
             }
 
-            trendData.labels.forEachIndexed { index, label ->
+            // 3. 繪製長條圖、中心數字、底部日期
+            dailyTotals.forEachIndexed { index, total ->
                 val centerX = paddingX + index * spacing + spacing / 2
-                val lowRaw = trendData.lowRisk.getOrElse(index) { 0f }
-                val medRaw = trendData.mediumRisk.getOrElse(index) { 0f }
-                val highRaw = trendData.highRisk.getOrElse(index) { 0f }
+                val barHeightValue = (total / maxTotal) * chartHeight * transitionProgress.value
+                val currentY = paddingY + chartHeight
                 
-                val lowVal = lowRaw * transitionProgress.value
-                val medVal = medRaw * transitionProgress.value
-                val highVal = highRaw * transitionProgress.value
-
-                var currentY = paddingY + chartHeight
-                val cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
-                val gap = 2.dp.toPx()
-
-                // --- 低風險 (底部) ---
-                if (lowVal > 0) {
-                    val segHeight = (lowVal / maxTotal) * chartHeight
-                    drawRoundRect(
-                        color = lowColor.copy(alpha = 0.8f),
-                        topLeft = Offset(centerX - barWidth / 2, currentY - segHeight),
-                        size = Size(barWidth, segHeight),
-                        cornerRadius = cornerRadius
-                    )
-                    // 顯示數字 (當動畫完成且高度足夠時)
-                    if (transitionProgress.value > 0.8f && segHeight > 12.dp.toPx()) {
-                        drawIntoCanvas { it.nativeCanvas.drawText(lowRaw.toInt().toString(), centerX, currentY - segHeight / 2 + 4.dp.toPx(), valuePaint) }
-                    }
-                    currentY -= (segHeight + gap)
+                // 決定長條顏色
+                val color = when {
+                    total >= 4 -> riskHighColor
+                    total >= 2 -> riskMediumColor
+                    total > 0 -> riskLowColor
+                    else -> Color.Transparent
                 }
 
-                // --- 中風險 ---
-                if (medVal > 0) {
-                    val segHeight = (medVal / maxTotal) * chartHeight
+                if (total > 0) {
+                    // 繪製一體化長條圖
                     drawRoundRect(
-                        color = mediumColor.copy(alpha = 0.8f),
-                        topLeft = Offset(centerX - barWidth / 2, currentY - segHeight),
-                        size = Size(barWidth, segHeight),
-                        cornerRadius = cornerRadius
+                        color = color,
+                        topLeft = Offset(centerX - barWidth / 2, currentY - barHeightValue),
+                        size = Size(barWidth, barHeightValue),
+                        cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
                     )
-                    if (transitionProgress.value > 0.8f && segHeight > 12.dp.toPx()) {
-                        drawIntoCanvas { it.nativeCanvas.drawText(medRaw.toInt().toString(), centerX, currentY - segHeight / 2 + 4.dp.toPx(), valuePaint) }
-                    }
-                    currentY -= (segHeight + gap)
-                }
 
-                // --- 高風險 (頂部) ---
-                if (highVal > 0) {
-                    val segHeight = (highVal / maxTotal) * chartHeight
-                    drawRoundRect(
-                        color = highColor.copy(alpha = 0.9f),
-                        topLeft = Offset(centerX - barWidth / 2, currentY - segHeight),
-                        size = Size(barWidth, segHeight),
-                        cornerRadius = cornerRadius
-                    )
-                    if (transitionProgress.value > 0.8f && segHeight > 12.dp.toPx()) {
-                        drawIntoCanvas { it.nativeCanvas.drawText(highRaw.toInt().toString(), centerX, currentY - segHeight / 2 + 4.dp.toPx(), valuePaint) }
+                    // 在長條圖【正中央】顯示數字
+                    if (transitionProgress.value > 0.8f && barHeightValue > 12.dp.toPx()) {
+                        drawIntoCanvas { canvas ->
+                            canvas.nativeCanvas.drawText(
+                                total.toString(),
+                                centerX,
+                                currentY - barHeightValue / 2 + 4.dp.toPx(), // 垂直置中
+                                textPaint
+                            )
+                        }
                     }
                 }
 
-                // 3. 繪製 X 軸標籤
+                // 繪製底部日期文字 (彩虹色且單一顏色顯示)
+                val label = trendData.labels.getOrNull(index) ?: ""
+                val labelColor = dayLabelColors.getOrNull(index % dayLabelColors.size) ?: Color.White
+                val labelPaint = android.graphics.Paint().apply {
+                    this.color = labelColor.toArgb()
+                    textSize = 10.sp.toPx()
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    typeface = android.graphics.Typeface.DEFAULT_BOLD
+                }
                 drawIntoCanvas { canvas ->
-                    val paint = android.graphics.Paint().apply {
-                        color = android.graphics.Color.GRAY
-                        textSize = 10.sp.toPx()
-                        textAlign = android.graphics.Paint.Align.CENTER
-                        typeface = android.graphics.Typeface.DEFAULT_BOLD
-                    }
-                    canvas.nativeCanvas.drawText(label, centerX, height, paint)
+                    canvas.nativeCanvas.drawText(label, centerX, height, labelPaint)
                 }
             }
         }

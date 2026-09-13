@@ -23,20 +23,34 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.scamdetectorapp.R
+import androidx.compose.runtime.*
 import com.example.scamdetectorapp.data.repository.NewsItem
-import com.example.scamdetectorapp.data.repository.NewsRepository
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 
 /**
  * 新分頁，防詐資訊新聞列表螢幕
  * 展示近兩週真實發生的熱門反詐騙案例與查核資訊。
  */
 @Composable
-fun NewsScreen(onBack: () -> Unit) {
+fun NewsScreen(onBack: () -> Unit, viewModel: MainViewModel) {
     val context = LocalContext.current
     val textWhite = MaterialTheme.colorScheme.onBackground
 
-    // 從 NewsRepository 獲取真實數據
-    val newsList = NewsRepository.newsList
+    // 從 ViewModel 獲取動態新聞數據
+    val newsList by viewModel.latestNews.collectAsStateWithLifecycle()
+
+    // 增加一個狀態來追蹤是否正在更新
+    var isRefreshing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        isRefreshing = true
+        android.util.Log.d("NewsScreen", "LaunchedEffect: Triggering refreshNews()")
+        viewModel.refreshNews()
+        // 簡單模擬載入完成 (或可以根據 newsList 變化)
+        kotlinx.coroutines.delay(1500)
+        isRefreshing = false
+    }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -65,9 +79,19 @@ fun NewsScreen(onBack: () -> Unit) {
                 )
             }
             
+        Spacer(modifier = Modifier.width(16.dp))
+        Text("防詐資訊看板", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = textWhite)
+
+        // 修改：只有在初始載入且還沒拿到任何資料時才顯示轉圈圈
+        if (isRefreshing && newsList.isEmpty()) {
             Spacer(modifier = Modifier.width(16.dp))
-            Text("防詐資訊看板", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = textWhite)
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp), 
+                color = MaterialTheme.colorScheme.primary, 
+                strokeWidth = 2.dp
+            )
         }
+    }
 
         // --- 滾動列表 ---
         LazyColumn(

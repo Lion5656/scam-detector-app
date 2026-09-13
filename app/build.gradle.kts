@@ -11,7 +11,7 @@ plugins {
 
 extensions.configure<ApplicationExtension> {
     namespace = "com.example.scamdetectorapp"
-    compileSdk = 37
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     // 1. 讀取 local.properties
@@ -24,7 +24,7 @@ extensions.configure<ApplicationExtension> {
     defaultConfig {
         applicationId = "com.example.scamdetectorapp"
         minSdk = 24
-        targetSdk = 37
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -119,7 +119,8 @@ dependencies {
 
     implementation("com.airbnb.android:lottie-compose:6.7.1")
     implementation("com.valentinilk.shimmer:compose-shimmer:1.5.0")
-    implementation("com.patrykandpatrick.vico:compose-m3:3.2.3")
+    implementation("com.patrykandpatrick.vico:compose-m3:3.0.0")
+    implementation("org.jsoup:jsoup:1.17.2")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
