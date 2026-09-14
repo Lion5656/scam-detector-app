@@ -17,7 +17,7 @@ import com.example.scamdetectorapp.presentation.model.ScanUiModel
 import com.example.scamdetectorapp.presentation.model.DashboardStats
 import com.example.scamdetectorapp.presentation.model.ScamTypeRatio
 import com.example.scamdetectorapp.data.local.entity.HistoryEntity
-import com.example.scamdetectorapp.BuildConfig
+import com.example.scamdetectorapp.data.local.entity.PhoneHistoryEntity
 import androidx.compose.ui.graphics.Color
 import com.example.scamdetectorapp.manager.PermissionManager
 import com.example.scamdetectorapp.manager.PermissionStatus
@@ -117,63 +117,19 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
         }
     }
 
-    val allHistory: StateFlow<List<HistoryEntity>> = repository.getAllHistory()
-        ?.map { history ->
-            if (BuildConfig.DEBUG) {
-                val mockHistory = mutableListOf<HistoryEntity>()
-                
-                // 動態取得本週一的凌晨時間
-                val cal = java.util.Calendar.getInstance()
-                cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
-                cal.set(java.util.Calendar.MINUTE, 0)
-                cal.set(java.util.Calendar.SECOND, 0)
-                cal.set(java.util.Calendar.MILLISECOND, 0)
-                val currentDayOfWeek = cal.get(java.util.Calendar.DAY_OF_WEEK)
-                val daysToMinus = if (currentDayOfWeek == java.util.Calendar.SUNDAY) 6 else (currentDayOfWeek - java.util.Calendar.MONDAY)
-                cal.add(java.util.Calendar.DAY_OF_YEAR, -daysToMinus)
-                val mondayTime = cal.timeInMillis
+    val allHistory: StateFlow<List<HistoryEntity>> = (repository.getAllHistory()
+        ?: flowOf(emptyList()))
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-                // 定義一週的數據比例 (低, 中, 高)
-                val weeklyRatios = listOf(
-                    Triple(2, 1, 0), // Mon - 3筆 (黃)
-                    Triple(1, 0, 0), // Tue - 1筆 (綠)
-                    Triple(3, 2, 5), // Wed - 10筆 (紅)
-                    Triple(2, 4, 9), // Thu - 15筆 (紅)
-                    Triple(6, 1, 3), // Fri - 10筆 (紅)
-                    Triple(2, 2, 0), // Sat - 4筆 (紅/黃)
-                    Triple(4, 2, 4)  // Sun - 10筆 (紅)
-                )
-
-                weeklyRatios.forEachIndexed { dayIdx, risks ->
-                    val dayBase = mondayTime + dayIdx * 24 * 60 * 60 * 1000L
-                    
-                    // 注入低風險
-                    repeat(risks.first) { i ->
-                        mockHistory.add(HistoryEntity(0, "文字", "SAFE", "測試數據", dayBase + i * 1000, 20, "正常訊息"))
-                    }
-                    // 注入中風險
-                    repeat(risks.second) { i ->
-                        mockHistory.add(HistoryEntity(0, "電話", "MEDIUM", "測試數據", dayBase + (risks.first + i) * 1000, 55, "疑似廣告"))
-                    }
-                    // 注入高風險
-                    repeat(risks.third) { i ->
-                        val category = if (i % 2 == 0) "假投資" else "約會交友"
-                        mockHistory.add(HistoryEntity(0, "簡訊", "HIGH", "測試數據", dayBase + (risks.first + risks.second + i) * 1000, 85, category))
-                    }
-                }
-                history + mockHistory
-            } else {
-                history
-            }
-        }
-        ?.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-        ?: MutableStateFlow(emptyList())
+    val allPhoneHistory: StateFlow<List<PhoneHistoryEntity>> = (repository.getAllPhoneHistory()
+        ?: flowOf(emptyList()))
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     // 儀表板統計數據
-    val dashboardStats: StateFlow<DashboardStats> = allHistory.map { history ->
+    val dashboardStats: StateFlow<DashboardStats> = combine(allHistory, allPhoneHistory) { history, phoneHistoryList ->
         val highRiskCount = history.count { it.riskLevel == "HIGH" }
         
-        // 1. 詐騙類型分佈比例 (按媒介區分)
+        // 詐騙類型分佈比例 (按媒介區分)
         val defaultMediaCategories = listOf("文字", "簡訊", "電話", "圖片")
         val mediaColors = mapOf(
             "文字" to Color(0xFFF2C94C), // 琥珀黃
@@ -194,11 +150,7 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
             )
         }
 
-        // 2. 詐騙電話種類統計 (按詳細行為區分)
-        // 篩選出所有高風險的電話紀錄 (或根據您的需求包含簡訊)
-        val detailedScams = highRiskHistory.filter { it.type == "電話" || it.type == "簡訊" }
-        val detailedTotal = detailedScams.size
-        
+        // 詐騙電話種類統計 (來自 PhoneHistoryEntity 與 detection_history 電話紀錄加總)
         val defaultDetailCategories = listOf("約會交友", "假包裹釣魚", "假投資", "假求職", "假信貸", "假冒公務", "假冒電商", "商業騷擾", "其他")
         val detailColors = listOf(
             Color(0xFFF05A5A), Color(0xFFFFA905), Color(0xFFF2C94C), 
@@ -206,14 +158,32 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
             Color(0xFFA78BFA), Color(0xFF64748B), Color(0xFFB0BEC5)
         )
         
+        val phoneTypeRecords = mutableListOf<String>()
+        phoneHistoryList.forEach { phoneTypeRecords.add(it.phoneType) }
+        highRiskHistory.filter { it.type == "電話" }.forEach { 
+            it.category?.let { cat -> phoneTypeRecords.add(cat) }
+        }
+
+        val totalPhoneCount = phoneTypeRecords.size
+        
         val phoneTypeDistribution = defaultDetailCategories.mapIndexed { idx, category ->
-            val count = detailedScams.count { 
-                if (category == "其他") it.category !in defaultDetailCategories
-                else it.category == category
+            val count = if (category == "其他") {
+                phoneTypeRecords.count { type ->
+                    defaultDetailCategories.dropLast(1).none { cat -> matchesPhoneCategory(type, cat) }
+                }
+            } else {
+                phoneTypeRecords.count { type ->
+                    matchesPhoneCategory(type, category)
+                }
             }
+
+            val percentage = if (totalPhoneCount > 0) {
+                Math.round(count * 100.0f / totalPhoneCount)
+            } else 0
+
             ScamTypeRatio(
                 label = category,
-                percentage = if (detailedTotal > 0) (count * 100 / detailedTotal) else 0,
+                percentage = percentage,
                 color = detailColors.getOrElse(idx) { Color.Gray }
             )
         }
@@ -429,6 +399,11 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
         }
     }
 
+    private fun matchesPhoneCategory(rawType: String, category: String): Boolean {
+        val type = rawType.trim()
+        return type == category
+    }
+
     private fun saveToHistory(mode: DetectionMode, input: String, uiModel: ScanUiModel) {
         viewModelScope.launch {
             val type = when (mode) {
@@ -450,6 +425,17 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
                 category = uiModel.detailMap?.get("電話類型")?.toString()
             )
             repository.saveHistory(history)
+
+            if (mode == DetectionMode.PHONE && uiModel.riskLevel == "HIGH") {
+                val phoneType = uiModel.detailMap?.get("電話類型")?.toString() ?: "其他"
+                repository.savePhoneHistory(
+                    PhoneHistoryEntity(
+                        phoneNumber = content,
+                        status = "black",
+                        phoneType = phoneType
+                    )
+                )
+            }
         }
     }
 

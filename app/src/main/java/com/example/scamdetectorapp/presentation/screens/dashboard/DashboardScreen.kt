@@ -1,7 +1,5 @@
 package com.example.scamdetectorapp.presentation.screens.dashboard
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ScrollState
@@ -9,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -26,7 +23,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -35,23 +31,10 @@ import com.example.scamdetectorapp.presentation.model.*
 import com.airbnb.lottie.compose.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.res.painterResource
 import com.example.scamdetectorapp.R
-import com.patrykandpatrick.vico.compose.cartesian.*
-import com.patrykandpatrick.vico.compose.cartesian.axis.*
-import com.patrykandpatrick.vico.compose.cartesian.layer.*
-import com.patrykandpatrick.vico.compose.cartesian.data.*
-import com.patrykandpatrick.vico.compose.cartesian.marker.*
-import com.patrykandpatrick.vico.compose.common.*
-import com.patrykandpatrick.vico.compose.common.component.*
-import com.patrykandpatrick.vico.compose.cartesian.layer.ColumnCartesianLayer
-import com.patrykandpatrick.vico.compose.common.data.ExtraStore
 
 @Composable
 fun DashboardScreen(
@@ -60,11 +43,11 @@ fun DashboardScreen(
 ) {
     val scrollState = rememberScrollState()
     
-    // 計算標題列的透明度：隨滑動距離淡出
+    // 計算標題列的透明度：隨滑動距離快速淡出
     val titleAlpha by remember {
         derivedStateOf {
-            val progress = (scrollState.value / 400f).coerceIn(0f, 1f)
-            1f - (progress * progress * progress)
+            val progress = (scrollState.value / 100f).coerceIn(0f, 1f)
+            1f - progress
         }
     }
 
@@ -216,7 +199,7 @@ fun RiskDashboardTab(viewModel: MainViewModel, scrollState: ScrollState) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // --- 5. 詐騙電話種類統計 ---
+        // --- 詐騙電話種類統計 ---
         Text(
             text = "詐騙電話種類統計",
             color = Color.White,
@@ -234,65 +217,16 @@ fun RiskDashboardTab(viewModel: MainViewModel, scrollState: ScrollState) {
                     .background(surfaceDark)
                     .padding(20.dp)
             ) {
-                if (stats.phoneTypeDistribution.all { it.percentage == 0 }) {
-                    Text("暫無高風險電話統計資料", color = Color.Gray, fontSize = 13.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
-                } else {
-                    stats.phoneTypeDistribution.forEachIndexed { index, ratio ->
-                        SimpleProgressBar(ratio)
-                        if (index < stats.phoneTypeDistribution.size - 1) {
-                            Spacer(Modifier.height(16.dp))
-                        }
+                stats.phoneTypeDistribution.forEachIndexed { index, ratio ->
+                    SimpleProgressBar(ratio)
+                    if (index < stats.phoneTypeDistribution.size - 1) {
+                        Spacer(Modifier.height(16.dp))
                     }
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(40.dp))
-    }
-}
-
-data class RecentEvent(val type: String, val target: String, val result: String, val time: String, val color: Color)
-
-@Composable
-fun RecentEventItem(event: RecentEvent, backgroundColor: Color) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(backgroundColor)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(event.color.copy(alpha = 0.08f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .background(event.color.copy(alpha = 0.1f), CircleShape)
-            )
-            Icon(
-                imageVector = when(event.type) {
-                    "電話" -> Icons.Default.Phone
-                    "網址" -> Icons.Default.Public
-                    else -> Icons.AutoMirrored.Filled.Chat
-                },
-                contentDescription = null,
-                tint = event.color,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(event.target, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(event.result, color = event.color.copy(alpha = 0.9f), fontSize = 12.sp, fontWeight = FontWeight.Medium)
-        }
-        Text(event.time, color = Color.Gray, fontSize = 11.sp)
     }
 }
 
@@ -315,16 +249,8 @@ fun MultiRiskTrendChart(
     trendData: RiskTrendData,
     modifier: Modifier = Modifier
 ) {
-    // 固定的彩虹色系 (僅用於日期文字)
-    val dayLabelColors = listOf(
-        Color(0xFFF05A5A), // Mon - 紅
-        Color(0xFFFFA905), // Tue - 橙
-        Color(0xFFF2C94C), // Wed - 黃
-        Color(0xFF00C853), // Thu - 綠
-        Color(0xFF4F7CFF), // Fri - 藍
-        Color(0xFF4B0082), // Sat - 靛
-        Color(0xFFA78BFA)  // Sun - 紫
-    )
+    // 固定的日期顏色
+    val dayLabelColor = Color(0xFFBCD4E7)
 
     // 風險等級顏色 (用於長條圖)
     val riskHighColor = Color(0xFFF05A5A)   // 高風險 - 紅
@@ -400,11 +326,15 @@ fun MultiRiskTrendChart(
                 val barHeightValue = (total / maxTotal) * chartHeight * transitionProgress.value
                 val currentY = paddingY + chartHeight
                 
-                // 決定長條顏色
+                val highCount = trendData.highRisk.getOrNull(index) ?: 0f
+                val mediumCount = trendData.mediumRisk.getOrNull(index) ?: 0f
+                val lowCount = trendData.lowRisk.getOrNull(index) ?: 0f
+
+                // 決定長條顏色：出現過高風險(紅色)、出現過中風險(黃色)、只出現過低風險(綠色)
                 val color = when {
-                    total >= 4 -> riskHighColor
-                    total >= 2 -> riskMediumColor
-                    total > 0 -> riskLowColor
+                    highCount > 0f -> riskHighColor
+                    mediumCount > 0f -> riskMediumColor
+                    lowCount > 0f -> riskLowColor
                     else -> Color.Transparent
                 }
 
@@ -432,9 +362,8 @@ fun MultiRiskTrendChart(
 
                 // 繪製底部日期文字 (彩虹色且單一顏色顯示)
                 val label = trendData.labels.getOrNull(index) ?: ""
-                val labelColor = dayLabelColors.getOrNull(index % dayLabelColors.size) ?: Color.White
                 val labelPaint = android.graphics.Paint().apply {
-                    this.color = labelColor.toArgb()
+                    this.color = dayLabelColor.toArgb()
                     textSize = 10.sp.toPx()
                     textAlign = android.graphics.Paint.Align.CENTER
                     typeface = android.graphics.Typeface.DEFAULT_BOLD

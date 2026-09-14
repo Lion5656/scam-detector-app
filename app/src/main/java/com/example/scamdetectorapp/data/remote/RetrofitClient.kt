@@ -1,5 +1,6 @@
 package com.example.scamdetectorapp.data.remote
 
+import android.util.Log
 import com.example.scamdetectorapp.BuildConfig
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -8,11 +9,12 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
     private const val BASE_URL = BuildConfig.BASE_URL
+    private const val NEWS_URL = BuildConfig.NEWS_URL
+    private const val OPEN_DATA_URL = BuildConfig.OPEN_DATA_URL
 
     init {
         System.loadLibrary("scamdetectorapp")
-        // 加入 Log 以便除錯 (請在 Logcat 搜尋 "RetrofitClient")
-        android.util.Log.d("RetrofitClient", "Initializing RetrofitClient")
+        Log.d("RetrofitClient", "Initializing RetrofitClient")
     }
 
     private external fun getApiKey(): String
@@ -22,16 +24,16 @@ object RetrofitClient {
             val apiKey = getApiKey()
             // 檢查 Key 是否成功從 C++ 取得
             if (apiKey.isEmpty()) {
-                android.util.Log.e("RetrofitClient", "ERROR: Native getApiKey() returned EMPTY string!")
+                Log.e("RetrofitClient", "ERROR: Native getApiKey() returned EMPTY string!")
             } else {
-                android.util.Log.d("RetrofitClient", "Native getApiKey() success. Length: ${apiKey.length}")
+                Log.d("RetrofitClient", "Native getApiKey() success. Length: ${apiKey.length}")
             }
 
             val original = chain.request()
             
             // 加入 Debug Log 協助確認 Header 是否成功帶入
-            android.util.Log.d("RetrofitClient", "--> Sending Request to: ${original.url}")
-            android.util.Log.d("RetrofitClient", "Using API_KEY: ${if(apiKey.isEmpty()) "EMPTY!" else "Loaded (Length: ${apiKey.length})"}")
+            Log.d("RetrofitClient", "--> Sending Request to: ${original.url}")
+            Log.d("RetrofitClient", "Using API_KEY: ${if(apiKey.isEmpty()) "EMPTY!" else "Loaded (Length: ${apiKey.length})"}")
 
             val request = original.newBuilder()
                 .header("x-api-key", apiKey)
@@ -40,7 +42,7 @@ object RetrofitClient {
                 .build()
             
             val response = chain.proceed(request)
-            android.util.Log.d("RetrofitClient", "<-- Received Response: ${response.code}")
+            Log.d("RetrofitClient", "<-- Received Response: ${response.code}")
             response
         }
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -71,7 +73,7 @@ object RetrofitClient {
      */
     val newsApiService: NewsApiService by lazy {
         Retrofit.Builder()
-            .baseUrl("https://purple-cell-7bda.xlxlxl468.workers.dev/")
+            .baseUrl(NEWS_URL)
             .client(cleanHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -83,7 +85,7 @@ object RetrofitClient {
      */
     val oneSixFiveInstance: OneSixFiveApi by lazy {
         Retrofit.Builder()
-            .baseUrl("https://od.moi.gov.tw/")
+            .baseUrl(OPEN_DATA_URL)
             .client(cleanHttpClient) // 使用乾淨的連線器，避免被政府伺服器擋掉
             .addConverterFactory(GsonConverterFactory.create())
             .build()

@@ -17,6 +17,7 @@ import java.io.FileOutputStream
 import androidx.core.net.toUri
 import com.example.scamdetectorapp.data.local.db.AppDatabase
 import com.example.scamdetectorapp.data.local.entity.HistoryEntity
+import com.example.scamdetectorapp.data.local.entity.PhoneHistoryEntity
 import kotlinx.coroutines.flow.Flow
 
 class AntiFraudRepository(private val context: Context? = null) {
@@ -30,6 +31,14 @@ class AntiFraudRepository(private val context: Context? = null) {
 
     fun getAllHistory(): Flow<List<HistoryEntity>>? {
         return historyDao?.getAllHistory()
+    }
+
+    suspend fun savePhoneHistory(phoneHistory: PhoneHistoryEntity) {
+        historyDao?.insertPhoneHistory(phoneHistory)
+    }
+
+    fun getAllPhoneHistory(): Flow<List<PhoneHistoryEntity>>? {
+        return historyDao?.getAllPhoneHistory()
     }
 
     /**
@@ -49,13 +58,19 @@ class AntiFraudRepository(private val context: Context? = null) {
                         val data = response.data
                         Log.d("AntiFraudRepository", "Phone data: $data")
                         var riskLevel: String
-                        if (data?.status == "white"){
+                        val statusLower = data?.status?.lowercase() ?: ""
+                        if (statusLower == "white") {
                             riskLevel = "SAFE"
-                        }
-                        else if (data?.status == "black"){
+                        } else if (statusLower == "black") {
                             riskLevel = "HIGH"
-                        }
-                        else {
+                            savePhoneHistory(
+                                PhoneHistoryEntity(
+                                    phoneNumber = input,
+                                    status = "black",
+                                    phoneType = data?.phoneType ?: "其他"
+                                )
+                            )
+                        } else {
                             riskLevel = "UNKNOWN"
                         }
                         ScanResult(

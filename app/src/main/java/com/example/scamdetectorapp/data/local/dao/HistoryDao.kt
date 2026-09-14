@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.example.scamdetectorapp.data.local.entity.HistoryEntity
+import com.example.scamdetectorapp.data.local.entity.PhoneHistoryEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -20,4 +21,10 @@ interface HistoryDao {
 
     @Query("DELETE FROM detection_history")
     suspend fun clearAll(): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPhoneHistory(phoneHistory: PhoneHistoryEntity): Long
+
+    @Query("SELECT * FROM phone_history ORDER BY id DESC")
+    fun getAllPhoneHistory(): Flow<List<PhoneHistoryEntity>>
 }

@@ -6,8 +6,9 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.scamdetectorapp.data.local.dao.HistoryDao
 import com.example.scamdetectorapp.data.local.entity.HistoryEntity
+import com.example.scamdetectorapp.data.local.entity.PhoneHistoryEntity
 
-@Database(entities = [HistoryEntity::class], version = 3, exportSchema = false)
+@Database(entities = [HistoryEntity::class, PhoneHistoryEntity::class], version = 4, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun historyDao(): HistoryDao
 

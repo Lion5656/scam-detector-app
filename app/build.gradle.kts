@@ -40,18 +40,18 @@ extensions.configure<ApplicationExtension> {
             }
         }
 
-        // 讀取 gradle.properties 中的 BASE_URL
-        val propertyUrl = project.findProperty("BASE_URL") as? String
-        // 確保去除空白和可能誤加的引號
-        val baseUrl = propertyUrl?.replace("\"", "")?.trim() ?: ""
-        
-        if (baseUrl.isEmpty()) {
-            println("WARNING: BASE_URL not found in gradle.properties or is empty.")
-        } else {
-            println("INFO: BASE_URL loaded: [$baseUrl]")
+        // 讀取並配置 URL 至 BuildConfig
+        for (key in listOf("BASE_URL", "NEWS_URL", "OPEN_DATA_URL")) {
+            val rawUrl = project.findProperty(key) as? String
+            val url = rawUrl?.replace("\"", "")?.trim() ?: ""
+            if (url.isEmpty()) {
+                println("WARNING: $key not found in gradle.properties or is empty.")
+            } else {
+                println("INFO: $key loaded: [$url]")
+            }
+            buildConfigField("String", key, "\"$url\"")
         }
-        
-        buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
+
     }
 
     externalNativeBuild {

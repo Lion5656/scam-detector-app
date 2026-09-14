@@ -13,3 +13,11 @@ data class HistoryEntity(
     val score: Int,
     val category: String? = null
 )
+
+@Entity(tableName = "phone_history")
+data class PhoneHistoryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val phoneNumber: String,
+    val status: String,
+    val phoneType: String,
+)
