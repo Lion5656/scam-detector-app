@@ -5,5 +5,6 @@ data class ScanResult(
     val score: String? = null,
     val threatType: String? = null,
     val suggestion: String? = null,
-    val detailInfo: Map<String, Any>? = null
+    val detailInfo: Map<String, Any>? = null,
+    val metadata: Map<String, Any>? = null
 )

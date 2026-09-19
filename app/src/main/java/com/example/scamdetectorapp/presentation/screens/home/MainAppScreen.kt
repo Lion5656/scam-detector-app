@@ -71,7 +71,8 @@ fun MainAppScreen(
     if (genealogyPhoneNumber != null) {
         PhoneGenealogyScreen(
             phoneNumber = genealogyPhoneNumber!!,
-            onBack = { genealogyPhoneNumber = null }
+            onBack = { genealogyPhoneNumber = null },
+            viewModel = viewModel
         )
     } else {
         Scaffold(
