@@ -9,5 +9,6 @@ data class ScanUiModel(
     val title: String,
     val reasons: List<String>,
     val mode: DetectionMode,
-    val detailMap: Map<String, Any>? = null
+    val detailMap: Map<String, Any>? = null,
+    val metadata: Map<String, Any>? = null
 )

@@ -240,7 +240,8 @@ fun GenericDetectionFlow(
                         onBack = { reset() },
                         onViewGenealogy = if (mode == DetectionMode.PHONE) {
                             { onNavigateToGenealogy?.invoke(localTextValue.text) }
-                        } else null
+                        } else null,
+                        viewModel = viewModel
                     )
                 }
             }

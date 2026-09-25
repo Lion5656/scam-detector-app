@@ -13,6 +13,7 @@ import com.example.scamdetectorapp.data.SettingsManager
 import com.example.scamdetectorapp.data.repository.AntiFraudRepository
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.domain.model.ScanResult
+import com.example.scamdetectorapp.presentation.model.PhoneGenealogyData
 import com.example.scamdetectorapp.presentation.model.ScanUiModel
 import com.example.scamdetectorapp.presentation.model.DashboardStats
 import com.example.scamdetectorapp.presentation.model.ScamTypeRatio
@@ -32,6 +33,13 @@ sealed interface ScanUiState {
     object Loading : ScanUiState
     data class Success(val result: ScanUiModel) : ScanUiState
     data class Error(val message: String, val title: String = "錯誤") : ScanUiState
+}
+
+sealed interface PhoneGenealogyUiState {
+    object Idle : PhoneGenealogyUiState
+    object Loading : PhoneGenealogyUiState
+    data class Success(val data: PhoneGenealogyData) : PhoneGenealogyUiState
+    data class Error(val message: String, val title: String = "錯誤") : PhoneGenealogyUiState
 }
 
 
@@ -62,6 +70,8 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
 
     private val _highlightPermissionCenter = MutableStateFlow(false)
     val highlightPermissionCenter = _highlightPermissionCenter.asStateFlow()
+    private val _phoneGenealogyState = MutableStateFlow<PhoneGenealogyUiState>(PhoneGenealogyUiState.Idle)
+    val phoneGenealogyState = _phoneGenealogyState.asStateFlow()
 
     // 儲存各模式的【狀態】內容，避免切換分頁時遺失
     private val _urlState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
@@ -399,6 +409,47 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
         }
     }
 
+    fun loadPhoneGenealogy(phoneNumber: String) {
+        _phoneGenealogyState.value = PhoneGenealogyUiState.Loading
+        viewModelScope.launch {
+            repository.getPhoneGenealogy(phoneNumber.trim()).fold(
+                onSuccess = { data: PhoneGenealogyData ->
+                    _phoneGenealogyState.value = PhoneGenealogyUiState.Success(data)
+                },
+                onFailure = { e: Throwable ->
+                    _phoneGenealogyState.value = PhoneGenealogyUiState.Error(
+                        message = e.message ?: "讀取號碼關聯資料失敗",
+                        title = "族譜載入失敗"
+                    )
+                }
+            )
+        }
+    }
+
+    fun resetPhoneGenealogy() {
+        _phoneGenealogyState.value = PhoneGenealogyUiState.Idle
+    }
+
+    suspend fun reportPhone(
+        phoneNumber: String,
+        phoneType: String,
+        otherType: String? = null,
+        reporterPhone: String? = null,
+        transferType: Int = 0,
+        transferContent: String? = null
+    ): Result<String> {
+        return repository.reportPhone(
+            phoneNumber = phoneNumber.trim(),
+            phoneType = phoneType,
+            otherType = otherType,
+            reporterPhone = reporterPhone,
+            transferType = transferType,
+            transferContent = transferContent
+        ).mapCatching { report: com.example.scamdetectorapp.data.model.PhoneReportResult ->
+            report.message ?: "可疑電話號碼已回報"
+        }
+    }
+
     private fun matchesPhoneCategory(rawType: String, category: String): Boolean {
         val type = rawType.trim()
         return type == category
@@ -502,6 +553,13 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
             }
         }
 
+        val metadata = result.metadata
+        val apiReasons = (metadata?.get("reasons") as? List<*>)?.filterIsInstance<String>()
+        if (!apiReasons.isNullOrEmpty()) {
+            reasons.clear()
+            reasons.addAll(apiReasons)
+        }
+
         return ScanUiModel(
             isSafe = (rLevel == "SAFE" || rLevel == "NODATA"),
             riskLevel = rLevel,
@@ -509,7 +567,8 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
             title = title,
             reasons = reasons,
             mode = mode,
-            detailMap = result.detailInfo
+            detailMap = result.detailInfo,
+            metadata = metadata
         )
     }
 
