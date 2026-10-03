@@ -3,6 +3,7 @@
 # Gradle files
 .gradle/
 build/
+build/reports/problems/
 
 # Local configuration file (sdk.dir, etc)
 local.properties
