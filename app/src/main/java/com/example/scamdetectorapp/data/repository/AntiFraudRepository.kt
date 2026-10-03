@@ -120,7 +120,7 @@ class AntiFraudRepository(private val context: Context? = null) {
                             metadata = mapOf(
                                 "phoneNumber" to (data?.phoneNumber ?: input),
                                 "status" to statusLower,
-                                "canReport" to (data?.canReport ?: true),
+"canReport" to (data?.canReport ?: (statusLower != "white"))
                                 "familyStatic" to familyStatic,
                                 "reasons" to reasons
                             )
