@@ -209,10 +209,12 @@ class AntiFraudRepository(private val context: Context? = null) {
 
             val data = response.data ?: throw Exception("查無號碼資料")
             val status = data.status?.lowercase().orEmpty()
-            val nodes = data.familyStatic.mapIndexed { index, item ->
+val nodes = data.familyStatic.mapIndexedNotNull { index, item ->
+                val relatedPhone = item.related_phone?.takeIf { it.isNotBlank() }
+                    ?: return@mapIndexedNotNull null
                 GenealogyNode(
                     id = index + 1,
-                    phoneNumber = item.related_phone ?: "未知號碼",
+                    phoneNumber = relatedPhone,
                     relationship = "靜態特徵",
                     connectionStrength = ((item.weight ?: 0).coerceIn(0, 100) / 100f),
                     lastActive = data.lastReportedAt,
