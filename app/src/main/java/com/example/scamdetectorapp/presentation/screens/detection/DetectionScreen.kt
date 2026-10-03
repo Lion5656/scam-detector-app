@@ -237,6 +237,7 @@ fun GenericDetectionFlow(
                     FraudResultScreen(
                         originalText = localTextValue.text,
                         result = result,
+                        detectionMode = mode,
                         onBack = { reset() },
                         onViewGenealogy = if (mode == DetectionMode.PHONE) {
                             { onNavigateToGenealogy?.invoke(localTextValue.text) }

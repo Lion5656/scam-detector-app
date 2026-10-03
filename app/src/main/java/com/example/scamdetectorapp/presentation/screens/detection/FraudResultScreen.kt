@@ -44,6 +44,7 @@ import kotlinx.coroutines.launch
 fun FraudResultScreen(
     originalText: String,
     result: ScanUiModel,
+    detectionMode: DetectionMode,
     onBack: () -> Unit,
     onViewGenealogy: (() -> Unit)? = null,
     viewModel: MainViewModel = viewModel(factory = MainViewModel.provideFactory(LocalContext.current.applicationContext as Application))
@@ -308,7 +309,7 @@ fun FraudResultScreen(
                         OutlinedButton(
                             onClick = onBack,
                             modifier = Modifier
-                                .weight(1f)
+                                .weight(if (detectionMode == DetectionMode.PHONE) 1f else 2f)
                                 .height(52.dp),
                             shape = RoundedCornerShape(50),
                             border = androidx.compose.foundation.BorderStroke(1.dp, textTertiary)
@@ -316,18 +317,20 @@ fun FraudResultScreen(
                             Text("再測一次", color = textWhite, fontWeight = FontWeight.Bold)
                         }
 
-                        Button(
-                            onClick = { showSheet = true },
-                            enabled = canReport && !reportLoading,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(52.dp),
-                            shape = RoundedCornerShape(50),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = statusColor
-                            )
-                        ) {
-                            Text(if (canReport) "詐騙回報" else "白名單不可回報", color = Color.White, fontWeight = FontWeight.Bold)
+                        if (detectionMode == DetectionMode.PHONE) {
+                            Button(
+                                onClick = { showSheet = true },
+                                enabled = canReport && !reportLoading,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(52.dp),
+                                shape = RoundedCornerShape(50),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = statusColor
+                                )
+                            ) {
+                                Text(if (canReport) "詐騙回報" else "白名單不可回報", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -335,7 +338,7 @@ fun FraudResultScreen(
         }
 
         // 回報詐騙的底部彈窗 (BottomSheet)
-        if (showSheet) {
+        if (showSheet && detectionMode == DetectionMode.PHONE) {
             ModalBottomSheet(
                 onDismissRequest = { showSheet = false },
                 sheetState = sheetState,
