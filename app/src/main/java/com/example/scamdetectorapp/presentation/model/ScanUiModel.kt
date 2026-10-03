@@ -1,6 +1,7 @@
 package com.example.scamdetectorapp.presentation.model
 
 import com.example.scamdetectorapp.domain.model.DetectionMode
+import com.example.scamdetectorapp.domain.model.PhoneScanMetadata
 
 data class ScanUiModel(
     val isSafe: Boolean,
@@ -10,5 +11,5 @@ data class ScanUiModel(
     val reasons: List<String>,
     val mode: DetectionMode,
     val detailMap: Map<String, Any>? = null,
-    val metadata: Map<String, Any>? = null
+    val metadata: PhoneScanMetadata? = null
 )

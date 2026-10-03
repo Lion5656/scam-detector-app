@@ -6,6 +6,8 @@ import android.util.Log
 import com.example.scamdetectorapp.data.model.*
 import com.example.scamdetectorapp.data.remote.RetrofitClient
 import com.example.scamdetectorapp.domain.model.DetectionMode
+import com.example.scamdetectorapp.domain.model.PhoneScanMetadata
+import com.example.scamdetectorapp.domain.model.RelatedPhone
 import com.example.scamdetectorapp.domain.model.ScanResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -117,12 +119,19 @@ class AntiFraudRepository(private val context: Context? = null) {
                                 else -> "此號碼目前尚無資料，建議提高警覺"
                             },
                             detailInfo = detailInfo,
-                            metadata = mapOf(
-                                "phoneNumber" to (data?.phoneNumber ?: input),
-                                "status" to statusLower,
-"canReport" to (data?.canReport ?: (statusLower != "white"))
-                                "familyStatic" to familyStatic,
-                                "reasons" to reasons
+                            metadata = PhoneScanMetadata(
+                                phoneNumber = data?.phoneNumber ?: input,
+                                status = statusLower,
+                                canReport = data?.canReport ?: (statusLower != "white"),
+                                familyStatic = familyStatic.map { item ->
+                                    RelatedPhone(
+                                        phoneNumber = item.related_phone,
+                                        weight = item.weight,
+                                        reason = item.reason,
+                                        targetPhoneType = item.target_phone_type
+                                    )
+                                },
+                                reasons = reasons
                             )
                         )
                     } else {

@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.scamdetectorapp.R
-import com.example.scamdetectorapp.data.model.PhoneFamilyStaticItem
 import android.app.Application
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.presentation.components.RiskScoreDashboard
@@ -53,10 +52,9 @@ fun FraudResultScreen(
     var showSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
-    val phoneInput = (result.metadata?.get("phoneNumber") as? String)?.ifBlank { originalText } ?: originalText
-    val canReport = (result.metadata?.get("canReport") as? Boolean) ?: true
-    val hasGenealogy = ((result.metadata?.get("familyStatic") as? List<*>)?.filterIsInstance<PhoneFamilyStaticItem>()
-        ?.any { !it.related_phone.isNullOrBlank() } == true)
+    val phoneInput = result.metadata?.phoneNumber?.ifBlank { originalText } ?: originalText
+    val canReport = result.metadata?.canReport ?: true
+    val hasGenealogy = result.metadata?.familyStatic?.any { !it.phoneNumber.isNullOrBlank() } == true
 
     val fraudTypes = listOf(
         "約會交友", "假投資", "假信貸",

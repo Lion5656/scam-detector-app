@@ -554,7 +554,7 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
         }
 
         val metadata = result.metadata
-        val apiReasons = (metadata?.get("reasons") as? List<*>)?.filterIsInstance<String>()
+        val apiReasons = metadata?.reasons
         if (!apiReasons.isNullOrEmpty()) {
             reasons.clear()
             reasons.addAll(apiReasons)
