@@ -248,7 +248,7 @@ val nodes = data.familyStatic.mapIndexedNotNull { index, item ->
                 throw IllegalArgumentException("不支援的詐騙類型：$phoneType")
             }
 
-            val normalizedOtherType = otherType?.trim()?.takeIf { it.isNotEmpty() }
+val normalizedOtherType = otherType?.trim()?.takeIf { phoneType == "其他" && it.isNotEmpty() }
             if (phoneType == "其他" && normalizedOtherType == null) {
                 throw IllegalArgumentException("選擇「其他」時，請輸入自訂類型")
             }
