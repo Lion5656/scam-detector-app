@@ -546,7 +546,8 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
             title = title,
             reasons = reasons,
             mode = mode,
-            detailMap = result.detailInfo
+            detailMap = result.detailInfo,
+            metadata = result.metadata
         )
     }
 

@@ -45,6 +45,8 @@ fun FraudResultScreen(
     val context = LocalContext.current
     var showSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // 族譜用：僅在後端確實回傳關聯號碼時才顯示族譜入口
+    val hasGenealogy = result.metadata?.familyStatic?.any { !it.phoneNumber.isNullOrBlank() } == true
 
     val fraudTypes = listOf(
         "騷擾", "個資蒐集", "企業假冒",
@@ -162,7 +164,7 @@ fun FraudResultScreen(
                 )
 
                 // 新增：查看族譜按鈕 (僅在有提供 callback 時顯示)
-                if (onViewGenealogy != null) {
+                if (onViewGenealogy != null && result.riskLevel.equals("HIGH", ignoreCase = true) && hasGenealogy) {
                     Spacer(Modifier.height(16.dp))
                     OutlinedButton(
                         onClick = onViewGenealogy,

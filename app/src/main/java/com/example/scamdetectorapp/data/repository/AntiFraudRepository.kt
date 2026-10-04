@@ -6,6 +6,8 @@ import android.util.Log
 import com.example.scamdetectorapp.data.model.*
 import com.example.scamdetectorapp.data.remote.RetrofitClient
 import com.example.scamdetectorapp.domain.model.DetectionMode
+import com.example.scamdetectorapp.domain.model.PhoneScanMetadata
+import com.example.scamdetectorapp.domain.model.RelatedPhone
 import com.example.scamdetectorapp.domain.model.ScanResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -75,6 +77,29 @@ class AntiFraudRepository(private val context: Context? = null) {
                         } else {
                             riskLevel = "UNKNOWN"
                         }
+                        val familyStatic = data?.familyStatic.orEmpty()
+                        val phoneReasons = buildList {
+                            when (statusLower) {
+                                "black" -> {
+                                    add("此號碼已被標記為黑名單")
+                                    data?.phoneType?.let { add("詐騙類型：$it") }
+                                    data?.totalReports?.let { add("累積回報 $it 次") }
+                                    if (familyStatic.isNotEmpty()) {
+                                        add("已找到 ${familyStatic.size} 筆疑似關聯號碼")
+                                    }
+                                }
+                                "white" -> {
+                                    add("此號碼已存在白名單")
+                                    data?.ownerName?.takeIf { it.isNotBlank() }?.let { add("合法機構／商家：$it") }
+                                    add("白名單號碼不可再次回報")
+                                }
+                                else -> {
+                                    add("目前尚無此號碼的檢測資料")
+                                    add("若曾接獲可疑來電，可直接回報")
+                                }
+                            }
+                        }
+
                         ScanResult(
                             riskLevel = riskLevel,
                             threatType = data?.phoneType,
@@ -85,7 +110,22 @@ class AntiFraudRepository(private val context: Context? = null) {
                                 data?.lastReportedAt?.let { put("最後回報", it) }
                                 data?.totalReports?.let {put("回報次數", it.toString())}
                                 data?.ownerName?.let { put("擁有者", it) }
-                            }
+                            },
+                            // 族譜用：關聯號碼清單決定結果頁是否顯示「查看號碼關聯族譜」
+                            metadata = PhoneScanMetadata(
+                                phoneNumber = data?.phoneNumber ?: input,
+                                status = statusLower,
+                                canReport = data?.canReport ?: (statusLower != "white"),
+                                familyStatic = familyStatic.map { item ->
+                                    RelatedPhone(
+                                        phoneNumber = item.related_phone,
+                                        weight = item.weight,
+                                        reason = item.reason,
+                                        targetPhoneType = item.target_phone_type
+                                    )
+                                },
+                                reasons = phoneReasons
+                            )
                         )
                     } else throw Exception("API 回傳失敗: ${response.version}")
                 }
