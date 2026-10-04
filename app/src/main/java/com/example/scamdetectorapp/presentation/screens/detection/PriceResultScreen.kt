@@ -2,8 +2,11 @@ package com.example.scamdetectorapp.presentation.screens.detection
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -18,6 +21,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,7 +93,7 @@ fun PriceResultScreen(
                 }
                 
                 Spacer(Modifier.width(12.dp))
-                Text("檢測結果・購物", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
+                Text("檢測結果", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textWhite)
             }
 
             Spacer(Modifier.height(8.dp))
@@ -240,22 +244,97 @@ private fun DetailPill(
     labelColor: Color,
     backgroundColor: Color
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    val scrollState = rememberScrollState()
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(backgroundColor, RoundedCornerShape(14.dp))
-            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(dotColor)
+                .fillMaxWidth()
+                .horizontalScroll(scrollState),
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(dotColor)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = label,
+                color = labelColor,
+                fontSize = 14.sp,
+                maxLines = 1,
+                softWrap = false
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = value,
+                color = textColor,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false
+            )
+        }
+
+        if (scrollState.maxValue > 0) {
+            Spacer(Modifier.height(8.dp))
+            CustomHorizontalScrollbar(
+                scrollState = scrollState,
+                thumbColor = Color(0xFFB0BEC5),
+                trackColor = Color.White.copy(alpha = 0.1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CustomHorizontalScrollbar(
+    scrollState: ScrollState,
+    modifier: Modifier = Modifier,
+    thumbColor: Color = Color(0xFFB0BEC5),
+    trackColor: Color = Color.White.copy(alpha = 0.1f)
+) {
+    if (scrollState.maxValue > 0) {
+        val targetProgress = (scrollState.value.toFloat() / scrollState.maxValue).coerceIn(0f, 1f)
+
+        val animatedProgress by animateFloatAsState(
+            targetValue = targetProgress,
+            animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+            label = "scrollbarProgress"
         )
-        Spacer(Modifier.width(10.dp))
-        Text(label, color = labelColor, fontSize = 14.sp, modifier = Modifier.weight(1f))
-        Text(value, color = textColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(1.5.dp)
+                .clip(CircleShape)
+                .background(trackColor)
+        ) {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val totalWidth = maxWidth
+                val thumbWidth = (totalWidth * 0.18f).coerceAtLeast(16.dp)
+                val maxOffset = totalWidth - thumbWidth
+                val currentOffset = maxOffset * animatedProgress
+
+                Box(
+                    modifier = Modifier
+                        .offset(x = currentOffset)
+                        .width(thumbWidth)
+                        .fillMaxHeight()
+                        .clip(CircleShape)
+                        .background(thumbColor)
+                )
+            }
+        }
     }
 }
 
@@ -270,9 +349,9 @@ fun PriceSection(
     val textWhite = MaterialTheme.colorScheme.onBackground
     val textGrey = colorResource(R.color.scam_text_grey)
 
-    // 市場價格基準點固定在 75% 的位置
-    val marketRatio = 0.75f
-    // 計算商品價格相對於市場價格的比例
+    // 市場價格基準點固定在 50% (中點) 的位置
+    val marketRatio = 0.5f
+    // 計算商品價格相對於市場價格的比例 (市場價格為 50%，2 倍市場價格為 100%)
     val productRatio = if (marketPrice > 0) {
         (marketRatio * (listedPrice / marketPrice)).toFloat().coerceIn(0f, 1f)
     } else 0f
@@ -313,7 +392,7 @@ fun PriceSection(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp) // 增加高度以容納更大的三角形
+                .height(48.dp)
         ) {
             // 背景條 (中線)
             Box(
@@ -323,8 +402,6 @@ fun PriceSection(
                     .background(textGrey.copy(alpha = 0.2f), CircleShape)
                     .align(Alignment.Center)
             )
-
-            // 市場價格標記 (圓點)
             Box(
                 modifier = Modifier
                     .fillMaxWidth(marketRatio)
@@ -348,7 +425,7 @@ fun PriceSection(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.align(Alignment.CenterEnd)
                 ) {
-                    // 頂部短線 (增加視覺指引，跨過中線)
+                    // 頂部短線 (跨過中線)
                     Box(
                         modifier = Modifier
                             .width(2.dp)
@@ -359,24 +436,24 @@ fun PriceSection(
                     // 正三角形 (向上指)
                     Box(
                         modifier = Modifier
-                            .size(width = 16.dp, height = 12.dp) // 從 12x10 放大至 16x12
+                            .size(width = 16.dp, height = 12.dp)
                             .background(statusColor, triangleShape)
                     )
                 }
             }
         }
 
-        // 位置條下方標籤
+        // 位置條下方標籤 (偏低 - 市場價格 - 偏高)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(top = 4.dp)
         ) {
             Text("偏低", color = textGrey, fontSize = 12.sp)
-            Box(modifier = Modifier.fillMaxWidth(marketRatio)) {
-                Text("市場價格", color = textWhite, fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterEnd))
+            Box(modifier = Modifier.weight(1f)) {
+                Text("市場價格", color = textWhite, fontSize = 12.sp, modifier = Modifier.align(Alignment.Center))
             }
+            Text("偏高", color = textGrey, fontSize = 12.sp)
         }
 
         // 價格差異百分比
