@@ -7,7 +7,8 @@ package com.example.scamdetectorapp.presentation.model
 data class PhoneGenealogyData(
     val rootNumber: String,
     val tagId: String,
-    val relatedNodes: List<GenealogyNode>
+    val relatedNodes: List<GenealogyNode>,
+    val status: String? = null
 )
 
 data class GenealogyNode(
@@ -15,6 +16,6 @@ data class GenealogyNode(
     val phoneNumber: String,
     val relationship: String, // 關係標籤 (如：靜態特徵)
     val connectionStrength: Float,
-    val lastActive: String,
+    val lastActive: String? = null,
     val reasons: List<String> // 新增：具體關聯原因列表
 )

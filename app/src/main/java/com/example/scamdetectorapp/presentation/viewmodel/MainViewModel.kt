@@ -13,6 +13,7 @@ import com.example.scamdetectorapp.data.SettingsManager
 import com.example.scamdetectorapp.data.repository.AntiFraudRepository
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.domain.model.ScanResult
+import com.example.scamdetectorapp.presentation.model.PhoneGenealogyData
 import com.example.scamdetectorapp.presentation.model.ScanUiModel
 import com.example.scamdetectorapp.presentation.model.DashboardStats
 import com.example.scamdetectorapp.presentation.model.ScamTypeRatio
@@ -32,6 +33,14 @@ sealed interface ScanUiState {
     object Loading : ScanUiState
     data class Success(val result: ScanUiModel) : ScanUiState
     data class Error(val message: String, val title: String = "錯誤") : ScanUiState
+}
+
+// 號碼族譜頁面的載入狀態
+sealed interface PhoneGenealogyUiState {
+    object Idle : PhoneGenealogyUiState
+    object Loading : PhoneGenealogyUiState
+    data class Success(val data: PhoneGenealogyData) : PhoneGenealogyUiState
+    data class Error(val message: String, val title: String = "錯誤") : PhoneGenealogyUiState
 }
 
 
@@ -62,6 +71,10 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
 
     private val _highlightPermissionCenter = MutableStateFlow(false)
     val highlightPermissionCenter = _highlightPermissionCenter.asStateFlow()
+
+    // 號碼族譜狀態
+    private val _phoneGenealogyState = MutableStateFlow<PhoneGenealogyUiState>(PhoneGenealogyUiState.Idle)
+    val phoneGenealogyState = _phoneGenealogyState.asStateFlow()
 
     // 儲存各模式的【狀態】內容，避免切換分頁時遺失
     private val _urlState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
@@ -397,6 +410,30 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
                 }
             )
         }
+    }
+
+    /**
+     * 號碼族譜：載入指定號碼的關聯資料
+     */
+    fun loadPhoneGenealogy(phoneNumber: String) {
+        _phoneGenealogyState.value = PhoneGenealogyUiState.Loading
+        viewModelScope.launch {
+            repository.getPhoneGenealogy(phoneNumber.trim()).fold(
+                onSuccess = { data: PhoneGenealogyData ->
+                    _phoneGenealogyState.value = PhoneGenealogyUiState.Success(data)
+                },
+                onFailure = { e: Throwable ->
+                    _phoneGenealogyState.value = PhoneGenealogyUiState.Error(
+                        message = e.message ?: "讀取號碼關聯資料失敗",
+                        title = "族譜載入失敗"
+                    )
+                }
+            )
+        }
+    }
+
+    fun resetPhoneGenealogy() {
+        _phoneGenealogyState.value = PhoneGenealogyUiState.Idle
     }
 
     private fun matchesPhoneCategory(rawType: String, category: String): Boolean {

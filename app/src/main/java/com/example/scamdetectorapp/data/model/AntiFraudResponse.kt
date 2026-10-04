@@ -7,5 +7,7 @@ package com.example.scamdetectorapp.data.model
 data class AntiFraudResponse<T>(
     val success: Boolean,
     val version: String,
-    val data: T?
+    val data: T?,
+    val error_code: Int? = null,
+    val error_message: String? = null
 )

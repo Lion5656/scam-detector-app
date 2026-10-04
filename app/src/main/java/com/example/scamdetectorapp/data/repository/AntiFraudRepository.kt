@@ -19,6 +19,8 @@ import com.example.scamdetectorapp.data.local.db.AppDatabase
 import com.example.scamdetectorapp.data.local.entity.HistoryEntity
 import com.example.scamdetectorapp.data.local.entity.PhoneHistoryEntity
 import kotlinx.coroutines.flow.Flow
+import com.example.scamdetectorapp.presentation.model.GenealogyNode
+import com.example.scamdetectorapp.presentation.model.PhoneGenealogyData
 
 class AntiFraudRepository(private val context: Context? = null) {
     private val api = RetrofitClient.instance
@@ -153,6 +155,44 @@ class AntiFraudRepository(private val context: Context? = null) {
                 }
             }
             Result.success(result)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 號碼族譜：查詢指定號碼的靜態特徵關聯號碼，轉換成 UI 使用的 PhoneGenealogyData
+     */
+    suspend fun getPhoneGenealogy(phoneNumber: String): Result<PhoneGenealogyData> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.queryPhoneNum(body = PhoneQueryRequest(phoneNumber = phoneNumber))
+            if (!response.success) {
+                throw Exception(response.error_message ?: "查詢號碼族譜失敗")
+            }
+
+            val data = response.data ?: throw Exception("查無號碼資料")
+            val status = data.status?.lowercase().orEmpty()
+            val nodes = data.familyStatic.orEmpty().mapIndexedNotNull { index, item ->
+                val relatedPhone = item.related_phone?.takeIf { it.isNotBlank() }
+                    ?: return@mapIndexedNotNull null
+                GenealogyNode(
+                    id = index + 1,
+                    phoneNumber = relatedPhone,
+                    relationship = "靜態特徵",
+                    connectionStrength = ((item.weight ?: 0).coerceIn(0, 100) / 100f),
+                    lastActive = data.lastReportedAt,
+                    reasons = listOfNotNull(item.reason).ifEmpty { listOf("無關聯原因說明") }
+                )
+            }
+
+            Result.success(
+                PhoneGenealogyData(
+                    rootNumber = data.phoneNumber ?: phoneNumber,
+                    tagId = data.phoneType ?: "無標籤資料",
+                    relatedNodes = nodes,
+                    status = status
+                )
+            )
         } catch (e: Exception) {
             Result.failure(e)
         }
