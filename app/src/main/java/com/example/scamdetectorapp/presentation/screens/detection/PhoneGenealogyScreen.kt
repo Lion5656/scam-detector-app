@@ -2,7 +2,6 @@ package com.example.scamdetectorapp.presentation.screens.detection
 
 import android.app.Application
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -16,11 +15,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,11 +32,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -51,12 +52,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -64,6 +67,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -73,20 +77,31 @@ import com.example.scamdetectorapp.presentation.model.GenealogyNode
 import com.example.scamdetectorapp.presentation.model.PhoneGenealogyData
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import com.example.scamdetectorapp.presentation.viewmodel.PhoneGenealogyUiState
-import com.example.scamdetectorapp.ui.theme.AppBackgroundBrush
-import com.example.scamdetectorapp.ui.theme.BrightRed
-import com.example.scamdetectorapp.ui.theme.DeepDarkBlue
-import com.example.scamdetectorapp.ui.theme.ElectricBlue
-import com.example.scamdetectorapp.ui.theme.ScamCyan
-import com.example.scamdetectorapp.ui.theme.SurfaceDark
+import com.example.scamdetectorapp.util.LottieLoadingView
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
-import kotlin.math.sqrt
+import kotlin.random.Random
+
+private val AppDarkBg = Color(0xFF0B0F19)
+private val AppLightBg = Color(0xFF121A21)
+private val AppCardSurface = Color(0xFF1A2332)
+private val AppCardBorder = Color(0xFF2E3B4E)
+private val AppSubtleText = Color(0xFF94A3B8)
+
+private val CyberBlue = Color(0xFF00E5FF)
+private val CyberPink = Color(0xFFFF1744)
+private val CyberAmber = Color(0xFFFFB300)
+private val NodeInnerFill = lerp(AppDarkBg, Color(0xFF0D47A1), 0.25f)
+
+private const val HIGH_RELATION_THRESHOLD = 0.8f
+
+private fun nodeRingColor(connectionStrength: Float): Color =
+    if (connectionStrength >= HIGH_RELATION_THRESHOLD) CyberPink else CyberAmber
 
 private data class GenealogyTextCache(
     val rootText: TextLayoutResult,
-    val nodeLabels: List<TextLayoutResult>,
-    val relationLabels: List<TextLayoutResult>
+    val nodeLabels: List<TextLayoutResult>
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -104,29 +119,28 @@ fun PhoneGenealogyScreen(
         viewModel.loadPhoneGenealogy(currentRoot)
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(AppBackgroundBrush)) {
-        val infiniteTransition = rememberInfiniteTransition(label = "bg")
-        val gridAlpha by infiniteTransition.animateFloat(
-            initialValue = 0.02f,
-            targetValue = 0.08f,
-            animationSpec = infiniteRepeatable(tween(3000), RepeatMode.Reverse),
-            label = "grid"
-        )
-
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val gridSize = 40.dp.toPx()
-            for (x in 0..size.width.toInt() step gridSize.toInt()) {
-                drawLine(ElectricBlue.copy(alpha = gridAlpha), Offset(x.toFloat(), 0f), Offset(x.toFloat(), size.height))
-            }
-            for (y in 0..size.height.toInt() step gridSize.toInt()) {
-                drawLine(ElectricBlue.copy(alpha = gridAlpha), Offset(0f, y.toFloat()), Offset(size.width, y.toFloat()))
-            }
-        }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(AppDarkBg, AppLightBg)))
+    ) {
+        GenealogyNetworkBackdrop(modifier = Modifier.fillMaxSize())
 
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text("號碼關聯族譜", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                    title = {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("號碼關聯族譜", color = AppSubtleText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (uiState is PhoneGenealogyUiState.Success) (uiState as PhoneGenealogyUiState.Success).data.rootNumber else currentRoot,
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    },
                     navigationIcon = {
                         IconButton(
                             onClick = {
@@ -159,7 +173,7 @@ fun PhoneGenealogyScreen(
                             message = if (state.data.status == "black") "目前沒有可顯示的關聯號碼" else "此號碼不是黑名單，沒有族譜資料"
                         )
                     } else {
-                        GenealogyContent(
+                        GenealogySatelliteContent(
                             innerPadding = innerPadding,
                             data = state.data,
                             onNodeClick = { selectedNode = it }
@@ -169,15 +183,102 @@ fun PhoneGenealogyScreen(
             }
         }
 
-        if (selectedNode != null) {
+        selectedNode?.let { node ->
             NodeDetailDialog(
-                node = selectedNode!!,
+                node = node,
                 onDismiss = { selectedNode = null },
                 onSwitchRoot = {
-                    currentRoot = selectedNode!!.phoneNumber
+                    currentRoot = node.phoneNumber
                     selectedNode = null
                 }
             )
+        }
+    }
+}
+
+private data class BackdropParticle(
+    val x: Float,
+    val y: Float,
+    val phase: Float,
+    val speed: Int
+)
+
+/**
+ * 族譜背景：淡點陣格線 + 中央深藍光暈 + 緩慢漂移的星網節點（距離夠近時連線），呼應號碼關聯網路。
+ * speed 為整數，動畫時間 0..2π 循環時位置可無縫銜接。
+ */
+@Composable
+private fun GenealogyNetworkBackdrop(modifier: Modifier = Modifier) {
+    val particles = remember {
+        val random = Random(20261005)
+        List(36) {
+            BackdropParticle(
+                x = random.nextFloat(),
+                y = random.nextFloat(),
+                phase = random.nextFloat() * 2f * PI.toFloat(),
+                speed = 1 + random.nextInt(2)
+            )
+        }
+    }
+    val transition = rememberInfiniteTransition(label = "backdrop")
+    val time by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 2f * PI.toFloat(),
+        animationSpec = infiniteRepeatable(tween(24000, easing = LinearEasing)),
+        label = "drift"
+    )
+
+    Canvas(modifier = modifier) {
+        val gridStep = 28.dp.toPx()
+        val dotRadius = 1.dp.toPx()
+        var gx = gridStep / 2
+        while (gx < size.width) {
+            var gy = gridStep / 2
+            while (gy < size.height) {
+                drawCircle(AppCardBorder.copy(alpha = 0.35f), dotRadius, Offset(gx, gy))
+                gy += gridStep
+            }
+            gx += gridStep
+        }
+
+        val glowCenter = Offset(size.width / 2, size.height * 0.4f)
+        val glowRadius = size.width * 0.9f
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(Color(0xFF0D47A1).copy(alpha = 0.28f), Color.Transparent),
+                center = glowCenter,
+                radius = glowRadius
+            ),
+            radius = glowRadius,
+            center = glowCenter
+        )
+
+        val drift = 14.dp.toPx()
+        val points = particles.map { p ->
+            Offset(
+                p.x * size.width + drift * cos(time * p.speed + p.phase),
+                p.y * size.height + drift * sin(time * p.speed + p.phase)
+            )
+        }
+        val linkDistance = 110.dp.toPx()
+        val lineWidth = 0.8.dp.toPx()
+        for (i in points.indices) {
+            for (j in i + 1 until points.size) {
+                val distance = (points[i] - points[j]).getDistance()
+                if (distance < linkDistance) {
+                    drawLine(
+                        color = CyberBlue.copy(alpha = 0.14f * (1f - distance / linkDistance)),
+                        start = points[i],
+                        end = points[j],
+                        strokeWidth = lineWidth
+                    )
+                }
+            }
+        }
+        val particleRadius = 1.8.dp.toPx()
+        points.forEach { point ->
+            drawCircle(CyberBlue.copy(alpha = 0.08f), particleRadius * 3f, point)
+            drawCircle(CyberBlue.copy(alpha = 0.4f), particleRadius, point)
         }
     }
 }
@@ -189,181 +290,304 @@ private fun LoadingGenealogyState(modifier: Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        CircularProgressIndicator(color = ScamCyan)
+        LottieLoadingView(size = 130.dp)
         Spacer(modifier = Modifier.height(16.dp))
-        Text("載入號碼關聯資料中...", color = Color.White, fontSize = 16.sp)
+        Text("載入號碼關聯族譜中...", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
     }
 }
 
 @Composable
-private fun GenealogyContent(innerPadding: PaddingValues, data: PhoneGenealogyData, onNodeClick: (GenealogyNode) -> Unit) {
+private fun GenealogySatelliteContent(
+    innerPadding: PaddingValues,
+    data: PhoneGenealogyData,
+    onNodeClick: (GenealogyNode) -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
             .verticalScroll(rememberScrollState())
-            .padding(20.dp),
+            .padding(vertical = 12.dp, horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        GenealogyGraph(data, onNodeClick)
-        Spacer(modifier = Modifier.height(40.dp))
-        Text("號碼所屬標籤：${data.tagId}", color = ScamCyan, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-        Spacer(modifier = Modifier.height(60.dp))
+        Spacer(modifier = Modifier.height(10.dp))
+
+        GenealogySatelliteGraph(
+            data = data,
+            onNodeClick = onNodeClick
+        )
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        Surface(
+            color = AppCardSurface,
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, AppCardBorder)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "號碼分類標籤：${data.tagId}",
+                    color = Color.White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
+private data class GenealogyLayout(
+    val orbitRadius: Float,
+    val nodeRadius: Float,
+    val touchRadius: Float
+)
+
+/** 單一軌道版面：節點數多時自動縮小節點半徑，避免相鄰節點重疊。 */
+private fun Density.genealogyLayout(count: Int): GenealogyLayout {
+    val orbitRadius = 150.dp.toPx()
+    val maxNodeRadius = 28.dp.toPx()
+    val fitRadius = if (count > 1) orbitRadius * sin(PI / count).toFloat() - 4.dp.toPx() else maxNodeRadius
+    val nodeRadius = fitRadius.coerceIn(18.dp.toPx(), maxNodeRadius)
+    return GenealogyLayout(
+        orbitRadius = orbitRadius,
+        nodeRadius = nodeRadius,
+        touchRadius = maxOf(nodeRadius, 22.dp.toPx())
+    )
+}
+
+private fun nodeCenter(center: Offset, orbitRadius: Float, index: Int, count: Int, rotation: Float): Offset {
+    val angle = Math.toRadians(index * (360.0 / count) - 90.0 + rotation)
+    return Offset(
+        center.x + orbitRadius * cos(angle).toFloat(),
+        center.y + orbitRadius * sin(angle).toFloat()
+    )
+}
+
 @Composable
-fun GenealogyGraph(data: PhoneGenealogyData, onNodeClick: (GenealogyNode) -> Unit) {
-    val infiniteTransition = rememberInfiniteTransition(label = "graph")
+fun GenealogySatelliteGraph(
+    data: PhoneGenealogyData,
+    onNodeClick: (GenealogyNode) -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "orbit")
     val orbitRotation by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(tween(30000, easing = LinearEasing)),
         label = "rotate"
     )
+    // pointerInput 只以 data 為 key，旋轉角度透過 rememberUpdatedState 讀取，避免每幀重啟手勢偵測
     val currentRotation by rememberUpdatedState(orbitRotation)
+    val currentOnNodeClick by rememberUpdatedState(onNodeClick)
+
+    val count = data.relatedNodes.size
+    val useShortLabel = with(LocalDensity.current) { genealogyLayout(count).nodeRadius < 24.dp.toPx() }
+
     val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
 
-    val textCache = remember(data) {
-        val numberStyle = TextStyle(color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-        val technicalStyle = TextStyle(
-            color = ScamCyan,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.ExtraBold,
-            shadow = Shadow(ScamCyan.copy(alpha = 0.5f), blurRadius = 5f)
-        )
+    val textCache = remember(data, useShortLabel) {
+        val rootStyle = TextStyle(color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        val nodeStyle = TextStyle(color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
 
         GenealogyTextCache(
-            rootText = textMeasurer.measure(data.rootNumber, numberStyle.copy(fontSize = 11.sp, color = Color(0xFFFF8A80))),
-            nodeLabels = data.relatedNodes.map { textMeasurer.measure(it.phoneNumber, numberStyle.copy(fontSize = 8.sp)) },
-            relationLabels = data.relatedNodes.map { textMeasurer.measure(it.relationship, technicalStyle) }
+            rootText = textMeasurer.measure(data.rootNumber, rootStyle),
+            nodeLabels = data.relatedNodes.map {
+                val label = if (useShortLabel) "…${it.phoneNumber.takeLast(4)}" else it.phoneNumber
+                textMeasurer.measure(label, nodeStyle)
+            }
         )
     }
 
-    Canvas(
-        modifier = Modifier
-            .size(340.dp)
-            .pointerInput(data) {
-                detectTapGestures { offset ->
-                    val centerX = size.width / 2
-                    val centerY = size.height / 2
-                    val orbitRadius = 115.dp.toPx()
-                    val nodeRadius = 32.dp.toPx()
-                    data.relatedNodes.forEachIndexed { index, node ->
-                        val angle = Math.toRadians(index * (360.0 / data.relatedNodes.size) - 90.0 + currentRotation)
-                        val nodeX = centerX + orbitRadius * cos(angle).toFloat()
-                        val nodeY = centerY + orbitRadius * sin(angle).toFloat()
-                        if (sqrt((offset.x - nodeX) * (offset.x - nodeX) + (offset.y - nodeY) * (offset.y - nodeY)) <= nodeRadius) {
-                            onNodeClick(node)
-                        }
+    Box(
+        modifier = Modifier.size(380.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(data) {
+                    detectTapGestures { offset ->
+                        val layout = genealogyLayout(count)
+                        val center = Offset(size.width / 2f, size.height / 2f)
+                        data.relatedNodes.indices
+                            .firstOrNull { index ->
+                                val nodePos = nodeCenter(center, layout.orbitRadius, index, count, currentRotation)
+                                (offset - nodePos).getDistance() <= layout.touchRadius
+                            }
+                            ?.let { currentOnNodeClick(data.relatedNodes[it]) }
                     }
                 }
+        ) {
+            val center = Offset(size.width / 2, size.height / 2)
+            val rootRadius = 46.dp.toPx()
+            val ringWidth = 2.5.dp.toPx()
+            val layout = genealogyLayout(count)
+
+            drawCircle(
+                color = AppCardBorder,
+                radius = layout.orbitRadius,
+                center = center,
+                style = Stroke(width = 1.2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)))
+            )
+
+            drawCircle(NodeInnerFill, rootRadius, center)
+            drawCircle(CyberBlue, rootRadius, center, style = Stroke(width = ringWidth))
+            drawText(
+                textLayoutResult = textCache.rootText,
+                topLeft = Offset(center.x - textCache.rootText.size.width / 2, center.y - textCache.rootText.size.height / 2)
+            )
+
+            data.relatedNodes.forEachIndexed { index, node ->
+                val nodePos = nodeCenter(center, layout.orbitRadius, index, count, orbitRotation)
+
+                drawCircle(NodeInnerFill, layout.nodeRadius, nodePos)
+                drawCircle(nodeRingColor(node.connectionStrength), layout.nodeRadius, nodePos, style = Stroke(width = ringWidth))
+
+                val label = textCache.nodeLabels[index]
+                drawText(
+                    textLayoutResult = label,
+                    topLeft = Offset(nodePos.x - label.size.width / 2, nodePos.y - label.size.height / 2)
+                )
             }
-    ) {
-        val centerX = size.width / 2
-        val centerY = size.height / 2
-        val orbitRadius = 115.dp.toPx()
-        val rootRadius = 50.dp.toPx()
-        val nodeRadius = 32.dp.toPx()
-
-        drawCircle(ElectricBlue.copy(alpha = 0.1f), orbitRadius, Offset(centerX, centerY), style = Stroke(width = 1.dp.toPx()))
-
-        data.relatedNodes.forEachIndexed { index, _ ->
-            val angle = Math.toRadians(index * (360.0 / data.relatedNodes.size) - 90.0 + orbitRotation)
-            val endX = centerX + orbitRadius * cos(angle).toFloat()
-            val endY = centerY + orbitRadius * sin(angle).toFloat()
-            drawLine(
-                ElectricBlue.copy(alpha = 0.2f),
-                Offset(centerX, centerY),
-                Offset(endX, endY),
-                strokeWidth = 1.2.dp.toPx(),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
-            )
-        }
-
-        drawCircle(BrightRed.copy(alpha = 0.08f), rootRadius * 1.6f, Offset(centerX, centerY))
-        drawCircle(SurfaceDark, rootRadius, Offset(centerX, centerY))
-        drawCircle(BrightRed, rootRadius, Offset(centerX, centerY), style = Stroke(width = 2.dp.toPx()))
-        drawText(textLayoutResult = textCache.rootText, topLeft = Offset(centerX - textCache.rootText.size.width / 2, centerY - textCache.rootText.size.height / 2))
-
-        data.relatedNodes.forEachIndexed { index, _ ->
-            val angle = Math.toRadians(index * (360.0 / data.relatedNodes.size) - 90.0 + orbitRotation)
-            val nodeX = centerX + orbitRadius * cos(angle).toFloat()
-            val nodeY = centerY + orbitRadius * sin(angle).toFloat()
-
-            drawCircle(SurfaceDark, nodeRadius, Offset(nodeX, nodeY))
-            drawCircle(ElectricBlue.copy(alpha = 0.5f), nodeRadius, Offset(nodeX, nodeY), style = Stroke(width = 1.5.dp.toPx()))
-            drawArc(
-                ScamCyan.copy(alpha = 0.7f),
-                orbitRotation * 3 + index * 60,
-                90f,
-                false,
-                Offset(nodeX - nodeRadius, nodeY - nodeRadius),
-                androidx.compose.ui.geometry.Size(nodeRadius * 2, nodeRadius * 2),
-                style = Stroke(width = 2.dp.toPx())
-            )
-
-            val label = textCache.nodeLabels[index]
-            drawText(textLayoutResult = label, topLeft = Offset(nodeX - label.size.width / 2, nodeY - label.size.height / 2))
-
-            val rel = textCache.relationLabels[index]
-            drawText(textLayoutResult = rel, topLeft = Offset(nodeX - rel.size.width / 2, nodeY + nodeRadius + 8.dp.toPx()))
         }
     }
 }
 
 @Composable
-fun NodeDetailDialog(node: GenealogyNode, onDismiss: () -> Unit, onSwitchRoot: () -> Unit) {
+fun NodeDetailDialog(
+    node: GenealogyNode,
+    onDismiss: () -> Unit,
+    onSwitchRoot: () -> Unit
+) {
+    val themeColor = nodeRingColor(node.connectionStrength)
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DeepDarkBlue,
+        containerColor = AppLightBg,
+        shape = RoundedCornerShape(20.dp),
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Hub, contentDescription = null, tint = ScamCyan)
-                Spacer(modifier = Modifier.size(12.dp))
-                Text("號碼關聯分析", color = Color.White)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(themeColor.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Hub,
+                        contentDescription = null,
+                        tint = themeColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "號碼關聯詳情",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         },
         text = {
             Column {
-                Text("標籤號碼：${node.phoneNumber}", color = Color.White, fontWeight = FontWeight.Bold)
-                node.lastActive?.let {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("最後回報：$it", color = ScamCyan, fontSize = 12.sp)
+                Surface(
+                    color = AppCardSurface,
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AppCardBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text(
+                            text = "目標號碼：${node.phoneNumber}",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                        node.lastActive?.let {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "最後回報時間：$it",
+                                color = AppSubtleText,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
                 }
+
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("關聯原因：", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "關聯原因與特徵：",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
                 node.reasons.forEach { reason ->
-                    Text("• $reason", color = Color.LightGray, fontSize = 13.sp, modifier = Modifier.padding(vertical = 2.dp))
+                    Row(
+                        modifier = Modifier.padding(vertical = 3.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(text = "• ", color = themeColor, fontWeight = FontWeight.Bold)
+                        Text(text = reason, color = Color(0xFFD0D0D5), fontSize = 13.sp)
+                    }
                 }
+
                 Spacer(modifier = Modifier.height(16.dp))
-                androidx.compose.material3.LinearProgressIndicator(
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "關聯強度", color = AppSubtleText, fontSize = 12.sp)
+                    Text(
+                        text = "${(node.connectionStrength * 100).toInt()}%",
+                        color = themeColor,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                LinearProgressIndicator(
                     progress = { node.connectionStrength },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp)
                         .clip(CircleShape),
-                    color = ElectricBlue,
-                    trackColor = Color.White.copy(alpha = 0.1f)
+                    color = themeColor,
+                    trackColor = AppCardBorder
                 )
-                Text("關聯強度：${(node.connectionStrength * 100).toInt()}%", color = Color.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
             }
         },
         confirmButton = {
             Button(
                 onClick = onSwitchRoot,
-                colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
+                colors = ButtonDefaults.buttonColors(containerColor = themeColor),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Icon(Icons.Default.Sync, contentDescription = null, tint = Color.White)
-                Spacer(modifier = Modifier.size(8.dp))
-                Text("以此號碼重新分析", color = Color.White, fontWeight = FontWeight.Bold)
+                Icon(
+                    imageVector = Icons.Default.Sync,
+                    contentDescription = null,
+                    tint = Color.Black,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "以此號碼重新分析",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold
+                )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("關閉", color = Color.LightGray)
+                Text(text = "關閉", color = AppSubtleText)
             }
         }
     )
@@ -378,103 +602,82 @@ private fun EmptyGenealogyState(modifier: Modifier, message: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Box(
-            modifier = Modifier
-                .size(180.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(SurfaceDark.copy(alpha = 0.72f))
-                .padding(20.dp),
-            contentAlignment = Alignment.Center
+        Surface(
+            color = AppCardSurface,
+            shape = RoundedCornerShape(24.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, AppCardBorder),
+            modifier = Modifier.size(180.dp)
         ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val stroke = 3.dp.toPx()
-                val panelWidth = size.width * 0.78f
-                val panelHeight = size.height * 0.62f
-                val left = (size.width - panelWidth) / 2
-                val top = (size.height - panelHeight) / 2
-                val corner = 20.dp.toPx()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val stroke = 2.5.dp.toPx()
+                    val radarCenter = Offset(size.width / 2, size.height / 2)
+                    val radarRadius = 32.dp.toPx()
 
-                drawRoundRect(
-                    color = ElectricBlue.copy(alpha = 0.16f),
-                    topLeft = Offset(left, top),
-                    size = androidx.compose.ui.geometry.Size(panelWidth, panelHeight),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner, corner)
-                )
-                drawRoundRect(
-                    color = ScamCyan.copy(alpha = 0.75f),
-                    topLeft = Offset(left, top),
-                    size = androidx.compose.ui.geometry.Size(panelWidth, panelHeight),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner, corner),
-                    style = Stroke(width = stroke)
-                )
-
-                val radarCenter = Offset(size.width / 2, size.height / 2 - 4.dp.toPx())
-                val radarRadius = 28.dp.toPx()
-                drawCircle(
-                    color = ScamCyan.copy(alpha = 0.16f),
-                    radius = radarRadius * 1.6f,
-                    center = radarCenter
-                )
-                drawCircle(
-                    color = ScamCyan.copy(alpha = 0.72f),
-                    radius = radarRadius,
-                    center = radarCenter,
-                    style = Stroke(width = stroke)
-                )
-                drawLine(
-                    color = ScamCyan.copy(alpha = 0.72f),
-                    start = Offset(radarCenter.x - radarRadius, radarCenter.y),
-                    end = Offset(radarCenter.x + radarRadius, radarCenter.y),
-                    strokeWidth = stroke
-                )
-                drawLine(
-                    color = ScamCyan.copy(alpha = 0.72f),
-                    start = Offset(radarCenter.x, radarCenter.y - radarRadius),
-                    end = Offset(radarCenter.x, radarCenter.y + radarRadius),
-                    strokeWidth = stroke
-                )
-
-                val slashInset = 18.dp.toPx()
-                drawLine(
-                    color = BrightRed.copy(alpha = 0.9f),
-                    start = Offset(left + slashInset, top + panelHeight - slashInset),
-                    end = Offset(left + panelWidth - slashInset, top + slashInset),
-                    strokeWidth = 4.dp.toPx()
-                )
-
-                val dotRadius = 4.dp.toPx()
-                listOf(
-                    Offset(left + 24.dp.toPx(), top + 22.dp.toPx()),
-                    Offset(left + panelWidth - 28.dp.toPx(), top + panelHeight - 26.dp.toPx()),
-                    Offset(left + panelWidth - 44.dp.toPx(), top + 26.dp.toPx())
-                ).forEach { center ->
-                    drawCircle(color = ElectricBlue.copy(alpha = 0.82f), radius = dotRadius, center = center)
+                    drawCircle(
+                        color = CyberBlue,
+                        radius = radarRadius,
+                        center = radarCenter,
+                        style = Stroke(width = stroke)
+                    )
+                    drawLine(
+                        color = AppCardBorder,
+                        start = Offset(radarCenter.x - radarRadius, radarCenter.y),
+                        end = Offset(radarCenter.x + radarRadius, radarCenter.y),
+                        strokeWidth = stroke
+                    )
+                    drawLine(
+                        color = AppCardBorder,
+                        start = Offset(radarCenter.x, radarCenter.y - radarRadius),
+                        end = Offset(radarCenter.x, radarCenter.y + radarRadius),
+                        strokeWidth = stroke
+                    )
                 }
             }
         }
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = message,
-            color = Color(0xFFB0BEC5),
-            fontSize = 16.sp,
+            color = AppSubtleText,
+            fontSize = 15.sp,
             textAlign = TextAlign.Center
         )
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF06090E)
+private fun previewNodes(count: Int): List<GenealogyNode> =
+    List(count) { i ->
+        GenealogyNode(
+            id = i + 1,
+            phoneNumber = "09123456${(80 + i).toString().padStart(2, '0')}",
+            relationship = "靜態特徵",
+            connectionStrength = if (i % 3 == 0) 0.92f else 0.65f,
+            lastActive = "2024-03-01 10:00:00",
+            reasons = listOf("同號段且尾碼物理接近")
+        )
+    }
+
+@Preview(showBackground = true, backgroundColor = 0xFF0B0F19)
 @Composable
 private fun PhoneGenealogyPreview() {
-    GenealogyContent(
+    GenealogySatelliteContent(
         innerPadding = PaddingValues(),
-        data = PhoneGenealogyData(
-            rootNumber = "0912345678",
-            tagId = "假投資",
-            relatedNodes = listOf(
-                GenealogyNode(1, "0912345679", "靜態特徵", 0.95f, "2024-03-01 10:00:00", listOf("同號段且尾碼物理接近")),
-                GenealogyNode(2, "0912345680", "靜態特徵", 0.72f, "2024-03-01 10:00:00", listOf("直接電話轉介"))
-            )
-        ),
+        data = PhoneGenealogyData(rootNumber = "0912345678", tagId = "假投資", relatedNodes = previewNodes(8)),
+        onNodeClick = {}
+    )
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0B0F19)
+@Composable
+private fun PhoneGenealogyDensePreview() {
+    GenealogySatelliteContent(
+        innerPadding = PaddingValues(),
+        data = PhoneGenealogyData(rootNumber = "0912345678", tagId = "假投資", relatedNodes = previewNodes(20)),
         onNodeClick = {}
     )
 }

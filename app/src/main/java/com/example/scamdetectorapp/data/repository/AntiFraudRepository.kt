@@ -77,7 +77,7 @@ class AntiFraudRepository(private val context: Context? = null) {
                         } else {
                             riskLevel = "UNKNOWN"
                         }
-                        val familyStatic = data?.familyStatic.orEmpty()
+                        val familyStatic = data?.familyStatic.orEmpty().excludingSelf(data?.phoneNumber, input)
                         val phoneReasons = buildList {
                             when (statusLower) {
                                 "black" -> {
@@ -118,10 +118,10 @@ class AntiFraudRepository(private val context: Context? = null) {
                                 canReport = data?.canReport ?: (statusLower != "white"),
                                 familyStatic = familyStatic.map { item ->
                                     RelatedPhone(
-                                        phoneNumber = item.related_phone,
+                                        phoneNumber = item.relatedPhone,
                                         weight = item.weight,
                                         reason = item.reason,
-                                        targetPhoneType = item.target_phone_type
+                                        targetPhoneType = item.targetPhoneType
                                     )
                                 },
                                 reasons = phoneReasons
@@ -207,13 +207,14 @@ class AntiFraudRepository(private val context: Context? = null) {
         try {
             val response = api.queryPhoneNum(body = PhoneQueryRequest(phoneNumber = phoneNumber))
             if (!response.success) {
-                throw Exception(response.error_message ?: "查詢號碼族譜失敗")
+                throw Exception(response.errorMessage ?: "查詢號碼族譜失敗")
             }
 
             val data = response.data ?: throw Exception("查無號碼資料")
             val status = data.status?.lowercase().orEmpty()
-            val nodes = data.familyStatic.orEmpty().mapIndexedNotNull { index, item ->
-                val relatedPhone = item.related_phone?.takeIf { it.isNotBlank() }
+            val rootNumber = data.phoneNumber ?: phoneNumber
+            val nodes = data.familyStatic.orEmpty().excludingSelf(rootNumber, phoneNumber).mapIndexedNotNull { index, item ->
+                val relatedPhone = item.relatedPhone?.takeIf { it.isNotBlank() }
                     ?: return@mapIndexedNotNull null
                 GenealogyNode(
                     id = index + 1,
@@ -227,7 +228,7 @@ class AntiFraudRepository(private val context: Context? = null) {
 
             Result.success(
                 PhoneGenealogyData(
-                    rootNumber = data.phoneNumber ?: phoneNumber,
+                    rootNumber = rootNumber,
                     tagId = data.phoneType ?: "無標籤資料",
                     relatedNodes = nodes,
                     status = status
@@ -235,6 +236,18 @@ class AntiFraudRepository(private val context: Context? = null) {
             )
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    /**
+     * 過濾掉空白號碼與查詢號碼本身（比對時忽略 -、空白等格式字元），
+     * 讓族譜按鈕判斷、關聯數量與族譜節點都只計算「其他」號碼
+     */
+    private fun List<PhoneFamilyStaticItem>.excludingSelf(vararg selfNumbers: String?): List<PhoneFamilyStaticItem> {
+        val selfDigits = selfNumbers.mapNotNull { number -> number?.filter(Char::isDigit)?.takeIf { it.isNotEmpty() } }.toSet()
+        return filter { item ->
+            val relatedPhone = item.relatedPhone
+            !relatedPhone.isNullOrBlank() && relatedPhone.filter(Char::isDigit) !in selfDigits
         }
     }
 
