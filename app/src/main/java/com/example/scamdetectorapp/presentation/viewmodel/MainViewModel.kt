@@ -22,9 +22,16 @@ import com.example.scamdetectorapp.data.local.entity.PhoneHistoryEntity
 import androidx.compose.ui.graphics.Color
 import com.example.scamdetectorapp.manager.PermissionManager
 import com.example.scamdetectorapp.manager.PermissionStatus
+import android.content.Intent
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
+import com.example.scamdetectorapp.presentation.model.InstalledAppInfo
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import java.net.SocketTimeoutException
 
@@ -59,8 +66,9 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
     val isShareAutoInputEnabled = settingsManager.isShareAutoInputEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    // Eagerly：App 啟動時即讀取，進入設定頁時防護數量不會先閃現 0
     val protectedApps = settingsManager.protectedApps
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     val customWhitelist = settingsManager.customWhitelist
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
@@ -100,10 +108,31 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
     val textInput = _textInput.asStateFlow()
     val priceInput = _priceInput.asStateFlow()
 
+    // --- 新聞資料狀態 ---
+    private val _latestNews = MutableStateFlow<List<com.example.scamdetectorapp.data.repository.NewsItem>>(emptyList())
+    val latestNews = _latestNews.asStateFlow()
+
+    private val _isNewsLoading = MutableStateFlow(false)
+    val isNewsLoading = _isNewsLoading.asStateFlow()
+
+    private var newsJob: Job? = null
+
+    // --- 已安裝 App 清單（防護 App 管理用）---
+    private val _installedApps = MutableStateFlow<List<InstalledAppInfo>>(emptyList())
+    val installedApps = _installedApps.asStateFlow()
+
+    private val _isInstalledAppsLoading = MutableStateFlow(false)
+    val isInstalledAppsLoading = _isInstalledAppsLoading.asStateFlow()
+
+    private var installedAppsJob: Job? = null
+
     init {
         updatePermissionStatus()
         syncShareComponentState()
         observePermissionAndProtection()
+        // App 開啟時即預載新聞與已安裝 App 清單，進入頁面時可直接顯示
+        refreshNews()
+        loadInstalledApps()
     }
 
     private fun observePermissionAndProtection() {
@@ -120,14 +149,77 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
             }
         }
     }
-    // --- 新聞資料狀態 ---
-    private val _latestNews = MutableStateFlow<List<com.example.scamdetectorapp.data.repository.NewsItem>>(emptyList())
-    val latestNews = _latestNews.asStateFlow()
-
+    /**
+     * 更新新聞。已有快取時於背景靜默更新，失敗則保留快取；尚無資料時才顯示錯誤項目。
+     * 若已有更新進行中則略過，避免啟動預載與進入頁面時重複請求。
+     */
     fun refreshNews() {
-        viewModelScope.launch {
-            _latestNews.value = com.example.scamdetectorapp.data.repository.NewsRepository.fetchAllLatestNews()
+        if (newsJob?.isActive == true) return
+        newsJob = viewModelScope.launch {
+            _isNewsLoading.value = true
+            try {
+                com.example.scamdetectorapp.data.repository.NewsRepository.fetchAllLatestNews()
+                    .onSuccess { _latestNews.value = it }
+                    .onFailure { e ->
+                        if (_latestNews.value.isEmpty()) {
+                            _latestNews.value = listOf(
+                                com.example.scamdetectorapp.data.repository.NewsRepository.errorNewsItem(e)
+                            )
+                        } else {
+                            Log.w("MainViewModel", "News refresh failed, keeping cached news: ${e.message}")
+                        }
+                    }
+            } finally {
+                _isNewsLoading.value = false
+            }
         }
+    }
+
+    /**
+     * 於背景解析所有可啟動 App 的名稱與圖示，並依名稱排序後快取。
+     */
+    fun loadInstalledApps() {
+        if (installedAppsJob?.isActive == true) return
+        installedAppsJob = viewModelScope.launch {
+            _isInstalledAppsLoading.value = true
+            try {
+                _installedApps.value = withContext(Dispatchers.IO) { queryInstalledApps() }
+                Log.d("MainViewModel", "Preloaded ${_installedApps.value.size} installed apps")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to load installed apps", e)
+            } finally {
+                _isInstalledAppsLoading.value = false
+            }
+        }
+    }
+
+    private fun queryInstalledApps(): List<InstalledAppInfo> {
+        val context = getApplication<Application>()
+        val packageManager = context.packageManager
+        // 圖示以列表顯示尺寸 (32dp) 縮放後快取，降低記憶體佔用
+        val iconSizePx = (APP_ICON_SIZE_DP * context.resources.displayMetrics.density).toInt().coerceAtLeast(1)
+        val intent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
+
+        return packageManager.queryIntentActivities(intent, 0)
+            .map { it.activityInfo.applicationInfo }
+            .distinctBy { it.packageName }
+            .mapNotNull { appInfo ->
+                try {
+                    InstalledAppInfo(
+                        packageName = appInfo.packageName,
+                        label = packageManager.getApplicationLabel(appInfo).toString(),
+                        icon = appInfo.loadIcon(packageManager)
+                            .toBitmap(iconSizePx, iconSizePx)
+                            .asImageBitmap()
+                    )
+                } catch (e: Exception) {
+                    Log.w("MainViewModel", "Skip app ${appInfo.packageName}: ${e.message}")
+                    null
+                }
+            }
+            .sortedBy { it.label }
     }
 
     val allHistory: StateFlow<List<HistoryEntity>> = (repository.getAllHistory()
@@ -552,6 +644,8 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
     }
 
     companion object {
+        private const val APP_ICON_SIZE_DP = 32
+
         fun provideFactory(application: Application): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {

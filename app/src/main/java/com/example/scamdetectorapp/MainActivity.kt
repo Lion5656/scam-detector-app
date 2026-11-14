@@ -1,5 +1,6 @@
 package com.example.scamdetectorapp
 
+import android.app.Application
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -12,13 +13,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.scamdetectorapp.data.SettingsManager
 import com.example.scamdetectorapp.presentation.model.SharedContent
 import com.example.scamdetectorapp.presentation.model.SharedType
 import com.example.scamdetectorapp.presentation.screens.home.MainAppScreen
 import com.example.scamdetectorapp.presentation.screens.splash.SplashScreen
+import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import com.example.scamdetectorapp.service.MonitorService
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -116,6 +120,12 @@ fun ScamGuardTheme(content: @Composable () -> Unit) {
 // ==================== 2. App 入口與閃屏頁邏輯 ====================
 @Composable
 fun AppEntry(sharedContent: SharedContent?, onSharedContentHandled: () -> Unit) {
+    // 提早建立 Activity 範圍的 MainViewModel（與 MainAppScreen 取得的是同一實例），
+    // 讓新聞與已安裝 App 清單在閃屏動畫期間即開始預載
+    viewModel<MainViewModel>(
+        factory = MainViewModel.provideFactory(LocalContext.current.applicationContext as Application)
+    )
+
     var showSplash by remember { mutableStateOf(sharedContent == null) }
 
     if (showSplash) {

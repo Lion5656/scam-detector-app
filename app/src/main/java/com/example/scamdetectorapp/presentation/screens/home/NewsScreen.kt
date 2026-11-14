@@ -37,19 +37,14 @@ fun NewsScreen(onBack: () -> Unit, viewModel: MainViewModel) {
     val context = LocalContext.current
     val textWhite = MaterialTheme.colorScheme.onBackground
 
-    // 從 ViewModel 獲取動態新聞數據
+    // 從 ViewModel 獲取動態新聞數據（App 啟動時已預載）
     val newsList by viewModel.latestNews.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isNewsLoading.collectAsStateWithLifecycle()
 
-    // 增加一個狀態來追蹤是否正在更新
-    var isRefreshing by remember { mutableStateOf(false) }
-
+    // 進入頁面時先顯示預載資料，並於背景靜默更新
     LaunchedEffect(Unit) {
-        isRefreshing = true
-        android.util.Log.d("NewsScreen", "LaunchedEffect: Triggering refreshNews()")
+        android.util.Log.d("NewsScreen", "LaunchedEffect: Triggering background refreshNews()")
         viewModel.refreshNews()
-        // 簡單模擬載入完成 (或可以根據 newsList 變化)
-        kotlinx.coroutines.delay(1500)
-        isRefreshing = false
     }
 
     Column(

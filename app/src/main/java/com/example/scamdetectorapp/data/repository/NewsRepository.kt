@@ -48,37 +48,41 @@ object NewsRepository {
 
     /**
      * 從 Cloudflare Worker 獲取最新即時新聞 (核心方法)
+     * 失敗時回傳 Result.failure，由呼叫端決定保留快取或顯示錯誤項目。
      */
-    suspend fun fetchAllLatestNews(): List<NewsItem> = withContext(Dispatchers.IO) {
+    suspend fun fetchAllLatestNews(): Result<List<NewsItem>> = withContext(Dispatchers.IO) {
         Log.d("NewsRepository", "--- 開始連線至 Cloudflare Worker ---")
         try {
             // 直接呼叫 API，不再有任何 NewsAggregator 的殘留
             val remoteNews = RetrofitClient.newsApiService.getLatestNews()
-            
+
             if (remoteNews.isNotEmpty()) {
                 Log.d("NewsRepository", "成功取得 ${remoteNews.size} 則新聞")
                 // 在標題前加上標記，方便確認是抓到的資料
-                remoteNews.map { it.copy(title = "[最新] ${it.title}") }
+                Result.success(remoteNews.map { it.copy(title = "[最新] ${it.title}") })
             } else {
                 Log.w("NewsRepository", "Worker 回傳空清單")
-                fallbackList
+                Result.success(fallbackList)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e("NewsRepository", "連線失敗: ${e.javaClass.simpleName} - ${e.message}")
-            
-            // 如果連線失敗，返回一個帶有錯誤訊息的項目，讓使用者知道原因
-            listOf(
-                NewsItem(
-                    "暫時無法取得最新新聞",
-                    "連線錯誤: ${e.message}。請確認網路狀況或 Worker 部署是否正確。",
-                    "連線診斷",
-                    "",
-                    "現在",
-                    NewsType.NEWS
-                )
-            )
+            Result.failure(e)
         }
     }
+
+    /**
+     * 連線失敗且尚無任何快取時顯示的診斷項目，讓使用者知道原因
+     */
+    fun errorNewsItem(e: Throwable) = NewsItem(
+        "暫時無法取得最新新聞",
+        "連線錯誤: ${e.message}。請確認網路狀況或 Worker 部署是否正確。",
+        "連線診斷",
+        "",
+        "現在",
+        NewsType.NEWS
+    )
 
     /**
      * 165 跑馬燈

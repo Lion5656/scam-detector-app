@@ -23,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -33,10 +32,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.scamdetectorapp.manager.PermissionStatus
+import com.example.scamdetectorapp.presentation.model.InstalledAppInfo
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import com.example.scamdetectorapp.ui.theme.*
 import kotlinx.coroutines.delay
@@ -52,6 +51,8 @@ fun SettingScreen(
     val isContactsEnabled by viewModel.isContactsEnabled.collectAsStateWithLifecycle()
     val isShareAutoInputEnabled by viewModel.isShareAutoInputEnabled.collectAsStateWithLifecycle()
     val protectedApps by viewModel.protectedApps.collectAsStateWithLifecycle()
+    val installedApps by viewModel.installedApps.collectAsStateWithLifecycle()
+    val isInstalledAppsLoading by viewModel.isInstalledAppsLoading.collectAsStateWithLifecycle()
     val customWhitelist by viewModel.customWhitelist.collectAsStateWithLifecycle()
     val permissionStatus by viewModel.permissionStatus.collectAsStateWithLifecycle()
     val highlightPermissionCenter by viewModel.highlightPermissionCenter.collectAsStateWithLifecycle()
@@ -239,6 +240,8 @@ fun SettingScreen(
     // Dialogs
     if (showAppManagement) {
         AppManagementDialog(
+            installedApps = installedApps,
+            isLoading = isInstalledAppsLoading,
             protectedApps = protectedApps,
             onUpdate = { viewModel.updateProtectedApps(it) },
             onDismiss = { showAppManagement = false }
@@ -434,31 +437,22 @@ fun SettingInfoItemContent(
 
 @Composable
 fun AppManagementDialog(
+    installedApps: List<InstalledAppInfo>,
+    isLoading: Boolean,
     protectedApps: Set<String>,
     onUpdate: (Set<String>) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
-    val packageManager = context.packageManager
-    
-    // 取得所有有圖示的 App
-    val allInstalledApps = remember {
-        val intent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
-        packageManager.queryIntentActivities(intent, 0).map {
-            it.activityInfo.applicationInfo
-        }.distinctBy { it.packageName }.sortedBy { packageManager.getApplicationLabel(it).toString() }
-    }
-
     // 搜尋關鍵字狀態
     var searchQuery by remember { mutableStateOf("") }
-    
-    // 根據關鍵字過濾後的清單
-    val filteredApps = remember(searchQuery, allInstalledApps) {
+
+    // 根據關鍵字過濾後的清單（名稱與圖示已於 App 啟動時預載）
+    val filteredApps = remember(searchQuery, installedApps) {
         if (searchQuery.isBlank()) {
-            allInstalledApps
+            installedApps
         } else {
-            allInstalledApps.filter {
-                packageManager.getApplicationLabel(it).toString().contains(searchQuery, ignoreCase = true) ||
+            installedApps.filter {
+                it.label.contains(searchQuery, ignoreCase = true) ||
                 it.packageName.contains(searchQuery, ignoreCase = true)
             }
         }
@@ -507,14 +501,28 @@ fun AppManagementDialog(
                     modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
                 )
                 
-                if (filteredApps.isNotEmpty()) {
+                if (installedApps.isEmpty() && isLoading) {
+                    // 預載尚未完成（例如 App 剛啟動即進入此頁）
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(28.dp),
+                            color = IndigoBlue,
+                            strokeWidth = 2.dp
+                        )
+                    }
+                } else if (filteredApps.isNotEmpty()) {
                     SettingsGroupCard {
                         LazyColumn(
                             modifier = Modifier
                                 .heightIn(max = 350.dp)
                                 .padding(horizontal = 12.dp)
                         ) {
-                            itemsIndexed(filteredApps) { index, app ->
+                            itemsIndexed(filteredApps, key = { _, app -> app.packageName }) { index, app ->
                                 val isChecked = protectedApps.contains(app.packageName)
                                 Row(
                                     modifier = Modifier
@@ -528,14 +536,14 @@ fun AppManagementDialog(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Image(
-                                        bitmap = app.loadIcon(packageManager).toBitmap().asImageBitmap(),
+                                        bitmap = app.icon,
                                         contentDescription = null,
                                         modifier = Modifier.size(32.dp)
                                     )
                                     Spacer(Modifier.width(12.dp))
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = packageManager.getApplicationLabel(app).toString(),
+                                            text = app.label,
                                             color = Color.White,
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.SemiBold
