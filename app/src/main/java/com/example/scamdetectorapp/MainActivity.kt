@@ -6,6 +6,8 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -132,9 +134,19 @@ fun AppEntry(sharedContent: SharedContent?, onSharedContentHandled: () -> Unit) 
 
     var showSplash by remember { mutableStateOf(sharedContent == null) }
 
-    if (showSplash) {
-        SplashScreen(onFinished = { showSplash = false })
-    } else {
-        MainAppScreen(sharedContent = sharedContent, onSharedContentHandled = onSharedContentHandled)
+    // 閃屏結束後以交叉淡化進入主畫面，避免畫面瞬間跳切
+    Crossfade(
+        targetState = showSplash,
+        animationSpec = tween(SPLASH_CROSSFADE_DURATION_MS),
+        label = "SplashTransition"
+    ) { isSplash ->
+        if (isSplash) {
+            SplashScreen(onFinished = { showSplash = false })
+        } else {
+            MainAppScreen(sharedContent = sharedContent, onSharedContentHandled = onSharedContentHandled)
+        }
     }
 }
+
+// 閃屏 → 主畫面交叉淡化時間 (ms)
+private const val SPLASH_CROSSFADE_DURATION_MS = 300
