@@ -73,8 +73,8 @@ class MonitorService : Service(){
     // 冷卻時間相關
     private var lastWarningTime = 0L
 
-    // 通話狀態監控器
-    private lateinit var callStateMonitor: CallStateMonitor
+    // 通話狀態監控器 (僅 API 31+ 建立，舊版維持 null)
+    private var callStateMonitor: CallStateMonitor? = null
 
     // 掛斷電話管理器
     private lateinit var callDisconnectManager: CallDisconnectManager
@@ -129,11 +129,12 @@ class MonitorService : Service(){
         }
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            callStateMonitor = CallStateMonitor(this)
-            callStateMonitor.startListening()
+            val monitor = CallStateMonitor(this)
+            callStateMonitor = monitor
+            monitor.startListening()
 
             stateListenJob = serviceScope.launch {
-                callStateMonitor.callState.collectLatest { state ->
+                monitor.callState.collectLatest { state ->
                     DebugLog.d(TAG, "狀態 state $state")
                     if(state == TelephonyManager.CALL_STATE_OFFHOOK){
                         startMonitoring()
@@ -159,11 +160,13 @@ class MonitorService : Service(){
         return START_STICKY
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
     override fun onDestroy(){
         stopMonitoring()
         overlay.close()
-        callStateMonitor.stopListening()
+        // onDestroy 在所有版本都會被呼叫，但監控器只在 API 31+ 建立
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            callStateMonitor?.stopListening()
+        }
         serviceScope.cancel()
         DebugLog.d(TAG, "service destroyed")
         stopForeground(STOP_FOREGROUND_REMOVE)
