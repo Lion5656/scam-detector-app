@@ -30,9 +30,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.scamdetectorapp.R
+import com.example.scamdetectorapp.data.repository.AntiFraudRepository
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.presentation.components.RiskScoreDashboard
 import com.example.scamdetectorapp.presentation.model.ScanUiModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,19 +42,21 @@ fun FraudResultScreen(
     originalText: String,
     result: ScanUiModel,
     onBack: () -> Unit,
-    onViewGenealogy: (() -> Unit)? = null
+    onViewGenealogy: (() -> Unit)? = null,
+    // 電話詐騙回報：(詐騙類型, 自訂類型) -> 成功訊息；為 null 時不顯示回報按鈕
+    onReportPhone: (suspend (String, String?) -> Result<String>)? = null
 ) {
     val context = LocalContext.current
-    var showSheet by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     // 族譜用：僅在後端確實回傳關聯號碼時才顯示族譜入口
     val hasGenealogy = result.metadata?.familyStatic?.any { !it.phoneNumber.isNullOrBlank() } == true
 
-    val fraudTypes = listOf(
-        "騷擾", "個資蒐集", "企業假冒",
-        "銀行信貸騷擾", "可疑電話", "未知詐騙"
-    )
+    // 電話詐騙回報用的彈窗與表單狀態
+    var showReportSheet by remember { mutableStateOf(false) }
+    val reportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val coroutineScope = rememberCoroutineScope()
     var selectedType by remember { mutableStateOf("") }
+    var otherType by remember { mutableStateOf("") }
+    var reportLoading by remember { mutableStateOf(false) }
 
     // 根據風險等級與分數判定風險等級、顏色、圖示與嚴重度短標籤：全頁共用同一語意色
     val isUnknown = result.riskLevel.equals("UNKNOWN", ignoreCase = true)
@@ -74,7 +78,10 @@ fun FraudResultScreen(
     val statusColor = status.color
     val statusIcon = status.icon
     val severityLabel = status.severity
-    val isLowRisk = !isUnknown && result.score in 1..39
+    // 電話檢測：未知與中高風險才可回報，低風險不顯示
+    val showReportButton = onReportPhone != null &&
+            result.mode == DetectionMode.PHONE &&
+            (isUnknown || result.score >= 40)
 
     val textWhite = MaterialTheme.colorScheme.onBackground
     val textGrey = colorResource(R.color.scam_text_grey)
@@ -299,28 +306,8 @@ fun FraudResultScreen(
                 color = Color.Transparent, // 保持背景透明以顯示下方的 AppBackgroundBrush
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (isLowRisk) {
-                    // 低風險時，僅顯示一個置中的「再測一次」主按鈕
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp)
-                            .padding(bottom = 32.dp, top = 8.dp)
-                    ) {
-                        Button(
-                            onClick = onBack,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
-                            shape = RoundedCornerShape(50),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
-                        ) {
-                            Text("再測一次", color = Color.White, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                } else {
+                if (showReportButton) {
+                    // 電話檢測（未知／中高風險）：「再測一次」與「詐騙回報」並排
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -340,7 +327,7 @@ fun FraudResultScreen(
                         }
 
                         Button(
-                            onClick = { showSheet = true },
+                            onClick = { showReportSheet = true },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(52.dp),
@@ -349,22 +336,39 @@ fun FraudResultScreen(
                                 containerColor = statusColor
                             )
                         ) {
-                            Text(
-                                "詐騙回報",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
+                            Text("詐騙回報", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    // 僅顯示一個置中的「再測一次」主按鈕
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 32.dp, top = 8.dp)
+                    ) {
+                        Button(
+                            onClick = onBack,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = RoundedCornerShape(50),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
                             )
+                        ) {
+                            Text("再測一次", color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
         }
 
-        // 回報詐騙的底部彈窗 (BottomSheet)
-        if (showSheet) {
+        // 電話詐騙回報的底部彈窗 (BottomSheet)
+        if (showReportSheet && showReportButton) {
             ModalBottomSheet(
-                onDismissRequest = { showSheet = false },
-                sheetState = sheetState,
+                onDismissRequest = { if (!reportLoading) showReportSheet = false },
+                sheetState = reportSheetState,
                 containerColor = surfaceColor,
                 dragHandle = { BottomSheetDefaults.DragHandle(color = textGrey) },
                 modifier = Modifier.fillMaxHeight(0.85f)
@@ -389,7 +393,7 @@ fun FraudResultScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        items(fraudTypes) { type ->
+                        items(AntiFraudRepository.PHONE_FRAUD_TYPES) { type ->
                             val isSelected = selectedType == type
                             Box(
                                 contentAlignment = Alignment.Center,
@@ -397,7 +401,7 @@ fun FraudResultScreen(
                                     .aspectRatio(1.2f)
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(if (isSelected) statusColor else componentColor)
-                                    .clickable { selectedType = type }
+                                    .clickable(enabled = !reportLoading) { selectedType = type }
                                     .padding(8.dp)
                             ) {
                                 Text(
@@ -412,16 +416,48 @@ fun FraudResultScreen(
                         }
                     }
 
+                    if (selectedType == "其他") {
+                        OutlinedTextField(
+                            value = otherType,
+                            onValueChange = { otherType = it },
+                            label = { Text("自訂詐騙類型") },
+                            enabled = !reportLoading,
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp)
+                        )
+                    }
+
                     Button(
                         onClick = {
-                            if (selectedType.isNotBlank()){
-                                Toast.makeText(context, "送出成功", Toast.LENGTH_SHORT).show()
-                                showSheet = false
-                                onBack()
-                            } else {
+                            if (selectedType.isBlank()) {
                                 Toast.makeText(context, "請先選擇詐騙類型", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            if (selectedType == "其他" && otherType.isBlank()) {
+                                Toast.makeText(context, "請輸入自訂詐騙類型", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val report = onReportPhone ?: return@Button
+
+                            coroutineScope.launch {
+                                reportLoading = true
+                                report(selectedType, otherType.takeIf { selectedType == "其他" }).fold(
+                                    onSuccess = { message ->
+                                        reportLoading = false
+                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                        showReportSheet = false
+                                        onBack()
+                                    },
+                                    onFailure = { e ->
+                                        reportLoading = false
+                                        Toast.makeText(context, e.message ?: "回報失敗", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
                             }
                         },
+                        enabled = !reportLoading,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 24.dp)
@@ -429,7 +465,12 @@ fun FraudResultScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = statusColor),
                         shape = RoundedCornerShape(50)
                     ) {
-                        Text("送出", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(
+                            if (reportLoading) "送出中..." else "送出",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
                     }
                 }
             }

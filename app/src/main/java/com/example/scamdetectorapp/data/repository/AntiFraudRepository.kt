@@ -240,6 +240,43 @@ class AntiFraudRepository(private val context: Context? = null) {
     }
 
     /**
+     * 電話詐騙回報：將號碼與使用者選擇的詐騙類型送至後端
+     */
+    suspend fun reportPhone(
+        phoneNumber: String,
+        phoneType: String,
+        otherType: String? = null
+    ): Result<PhoneReportResult> = withContext(Dispatchers.IO) {
+        try {
+            if (phoneType !in PHONE_FRAUD_TYPES) {
+                throw IllegalArgumentException("不支援的詐騙類型：$phoneType")
+            }
+
+            val normalizedOtherType = otherType?.trim()?.takeIf { phoneType == "其他" && it.isNotEmpty() }
+            if (phoneType == "其他" && normalizedOtherType == null) {
+                throw IllegalArgumentException("選擇「其他」時，請輸入自訂類型")
+            }
+
+            val response = api.reportPhoneNum(
+                body = PhoneReportRequest(
+                    phoneNumber = phoneNumber,
+                    phoneType = phoneType,
+                    otherType = normalizedOtherType
+                )
+            )
+            Log.d("AntiFraudRepository", "Report response: ${response.data}")
+
+            if (!response.success) {
+                throw Exception(response.errorMessage ?: "回報失敗")
+            }
+
+            Result.success(response.data ?: throw Exception("回報成功但缺少資料"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * 過濾掉空白號碼與查詢號碼本身（比對時忽略 -、空白等格式字元），
      * 讓族譜按鈕判斷、關聯數量與族譜節點都只計算「其他」號碼
      */
@@ -267,5 +304,14 @@ class AntiFraudRepository(private val context: Context? = null) {
         } catch (e: Exception) {
             null
         }
+    }
+
+    companion object {
+        // 後端 /api/v1/phones/report 接受的詐騙類型
+        val PHONE_FRAUD_TYPES = listOf(
+            "約會交友", "假投資", "假信貸",
+            "假冒公務", "假包裹釣魚", "假求職",
+            "商業騷擾", "假冒電商", "其他"
+        )
     }
 }

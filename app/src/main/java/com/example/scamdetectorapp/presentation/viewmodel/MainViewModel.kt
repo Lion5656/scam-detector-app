@@ -537,6 +537,28 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
         _phoneGenealogyState.value = PhoneGenealogyUiState.Idle
     }
 
+    /**
+     * 電話詐騙回報：成功時回傳顯示給使用者的訊息
+     */
+    suspend fun reportPhone(phoneNumber: String, phoneType: String, otherType: String? = null): Result<String> {
+        return repository.reportPhone(
+            phoneNumber = phoneNumber.trim(),
+            phoneType = phoneType,
+            otherType = otherType
+        ).fold(
+            onSuccess = { report -> Result.success(report.message ?: "可疑電話號碼已回報") },
+            onFailure = { e ->
+                Log.e("MainViewModel", "Report phone failed", e)
+                val message = when (e) {
+                    is HttpException -> "伺服器錯誤 (${e.code()})，請稍後再試"
+                    is SocketTimeoutException -> "伺服器回應太慢，請稍後再試"
+                    else -> e.message ?: "回報失敗"
+                }
+                Result.failure(Exception(message, e))
+            }
+        )
+    }
+
     private fun matchesPhoneCategory(rawType: String, category: String): Boolean {
         val type = rawType.trim()
         return type == category

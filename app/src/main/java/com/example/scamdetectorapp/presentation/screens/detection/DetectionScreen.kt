@@ -43,6 +43,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -240,6 +241,16 @@ fun GenericDetectionFlow(
                         onBack = { reset() },
                         onViewGenealogy = if (mode == DetectionMode.PHONE) {
                             { onNavigateToGenealogy?.invoke(localTextValue.text) }
+                        } else null,
+                        // 僅電話檢測提供詐騙回報，其他檢測維持原樣
+                        onReportPhone = if (mode == DetectionMode.PHONE) {
+                            { phoneType, otherType ->
+                                viewModel.reportPhone(
+                                    phoneNumber = result.metadata?.phoneNumber?.ifBlank { null } ?: localTextValue.text,
+                                    phoneType = phoneType,
+                                    otherType = otherType
+                                )
+                            }
                         } else null
                     )
                 }
@@ -425,7 +436,10 @@ fun InputScreen(
                             Text(
                                 placeholder,
                                 color = textGrey.copy(alpha = 0.6f),
-                                textAlign = if (isMultiLine) TextAlign.Start else TextAlign.Center,
+                                textAlign = TextAlign.Start,
+                                // 單行模式固定一行，避免窄螢幕換行後被輸入框高度裁切
+                                maxLines = if (isMultiLine) Int.MAX_VALUE else 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         },
@@ -442,7 +456,11 @@ fun InputScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = if (isMultiLine) 120.dp else 56.dp, max = if (isMultiLine) 160.dp else 56.dp)
+                            // 單行模式不設高度上限，讓系統字體放大時輸入框能跟著長高，不裁切 placeholder
+                            .then(
+                                if (isMultiLine) Modifier.heightIn(min = 120.dp, max = 160.dp)
+                                else Modifier.heightIn(min = 56.dp)
+                            )
                             .focusRequester(focusRequester),
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
@@ -455,7 +473,7 @@ fun InputScreen(
                             cursorColor = SystemBlue
                         ),
                         textStyle = LocalTextStyle.current.copy(
-                            textAlign = if (isMultiLine) TextAlign.Start else TextAlign.Center,
+                            textAlign = TextAlign.Start,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium
                         ),
