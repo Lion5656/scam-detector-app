@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.Color
  * 儀表板統計資料模型
  */
 data class DashboardStats(
-    val highRiskMessages: Int,
+    val highRiskMessages: Int, // 今日高風險筆數
     val interceptedCount: Int,
     val learningProgress: Int, // 百分比
     val reportedCases: Int,

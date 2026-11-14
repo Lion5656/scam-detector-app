@@ -233,7 +233,16 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
     // 儀表板統計數據
     val dashboardStats: StateFlow<DashboardStats> = combine(allHistory, allPhoneHistory) { history, phoneHistoryList ->
         val highRiskCount = history.count { it.riskLevel == "HIGH" }
-        
+
+        // 今日 (00:00 起) 的高風險筆數，供「今日風險趨勢」摘要使用
+        val todayStart = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val todayHighRiskCount = history.count { it.riskLevel == "HIGH" && it.timestamp >= todayStart }
+
         // 詐騙類型分佈比例 (按媒介區分)
         val defaultMediaCategories = listOf("文字", "簡訊", "電話", "圖片")
         val mediaColors = mapOf(
@@ -331,7 +340,7 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
         }
 
         DashboardStats(
-            highRiskMessages = highRiskCount,
+            highRiskMessages = todayHighRiskCount,
             interceptedCount = highRiskCount,
             learningProgress = (history.size * 5).coerceAtMost(100),
             reportedCases = highRiskCount,
