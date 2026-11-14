@@ -1,6 +1,12 @@
 package com.example.scamdetectorapp.presentation.screens.home
 
 import android.app.Application
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -10,7 +16,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.scamdetectorapp.domain.model.DetectionMode
@@ -56,6 +66,24 @@ fun MainAppScreen(
 
     val isShareAutoInputEnabled by viewModel.isShareAutoInputEnabled.collectAsState()
 
+    // 依捲動方向切換導覽列：內容往下捲動時隱藏，往上捲動時重新顯示
+    var isBottomBarScrollVisible by remember { mutableStateOf(true) }
+    val bottomBarScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                when {
+                    available.y < -BOTTOM_BAR_TOGGLE_THRESHOLD_PX -> isBottomBarScrollVisible = false
+                    available.y > BOTTOM_BAR_TOGGLE_THRESHOLD_PX -> isBottomBarScrollVisible = true
+                }
+                return Offset.Zero // 不消耗捲動量，僅觀察方向
+            }
+        }
+    }
+    // 切換分頁或進出檢測流程時重置為顯示，避免回到首頁時導覽列仍是隱藏狀態
+    LaunchedEffect(currentTab, activeDetectionMode) {
+        isBottomBarScrollVisible = true
+    }
+
     LaunchedEffect(sharedContent) {
         initialData?.let { (mode, input) ->
             viewModel.resetAllStates()
@@ -89,6 +117,7 @@ fun MainAppScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(top = innerPadding.calculateTopPadding())
+                        .nestedScroll(bottomBarScrollConnection)
                 ) {
                     when (currentTab) {
                         "分享檢測" -> {
@@ -191,9 +220,18 @@ fun MainAppScreen(
                     Box(
                         modifier = Modifier.align(Alignment.BottomCenter)
                     ) {
-                        CustomBottomBar(currentTab) { selected ->
-                            currentTab = selected
-                            activeDetectionMode = null
+                        // 捲動時以 0.2s 滑動 + 淡入淡出銜接顯示／隱藏
+                        AnimatedVisibility(
+                            visible = isBottomBarScrollVisible,
+                            enter = slideInVertically(tween(BOTTOM_BAR_ANIM_DURATION_MS)) { it } +
+                                    fadeIn(tween(BOTTOM_BAR_ANIM_DURATION_MS)),
+                            exit = slideOutVertically(tween(BOTTOM_BAR_ANIM_DURATION_MS)) { it } +
+                                   fadeOut(tween(BOTTOM_BAR_ANIM_DURATION_MS))
+                        ) {
+                            CustomBottomBar(currentTab) { selected ->
+                                currentTab = selected
+                                activeDetectionMode = null
+                            }
                         }
                     }
                 }
@@ -201,6 +239,12 @@ fun MainAppScreen(
         }
     }
 }
+
+// 導覽列顯示／隱藏動畫時間 (ms)
+private const val BOTTOM_BAR_ANIM_DURATION_MS = 200
+
+// 單次捲動量超過此值才切換導覽列，避免手指微動造成閃爍 (px)
+private const val BOTTOM_BAR_TOGGLE_THRESHOLD_PX = 4f
 
 private fun detectModeFromContent(content: SharedContent) : DetectionMode{
     return when (content.type) {
