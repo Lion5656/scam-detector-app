@@ -2,8 +2,8 @@ package com.example.scamdetectorapp.presentation.screens.home
 
 import android.app.Application
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -12,33 +12,44 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.scamdetectorapp.domain.model.DetectionMode
 import com.example.scamdetectorapp.presentation.components.CustomBottomBar
+import com.example.scamdetectorapp.presentation.components.DETECTION_MODE_ORDER
 import com.example.scamdetectorapp.presentation.model.SharedContent
 import com.example.scamdetectorapp.presentation.model.SharedType
 import com.example.scamdetectorapp.presentation.screens.dashboard.DashboardScreen
+import com.example.scamdetectorapp.presentation.screens.detection.DetectionInputHeader
 import com.example.scamdetectorapp.presentation.screens.detection.GenericDetectionFlow
 import com.example.scamdetectorapp.presentation.screens.detection.PhoneGenealogyScreen
 import com.example.scamdetectorapp.presentation.screens.history.HistoryScreen
 import com.example.scamdetectorapp.presentation.screens.setting.SettingScreen
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
+import com.example.scamdetectorapp.presentation.viewmodel.ScanUiState
 import com.example.scamdetectorapp.ui.theme.AppBackgroundBrush
+import kotlin.math.abs
 
 @Composable
 fun MainAppScreen(
@@ -140,7 +151,9 @@ fun MainAppScreen(
                                     mode = if (currentTab == "首頁") activeDetectionMode else null
                                 ),
                                 modifier = Modifier.fillMaxSize(),
-                                transitionSpec = { mainPageTransition() },
+                                transitionSpec = { fadeThroughTransition() },
+                                // 檢測模式之間互切由 DetectionModePager 處理，不重建頁面也不播放換頁轉場
+                                contentKey = { it.tab to (it.mode != null) },
                                 label = "MainPageTransition"
                             ) { page ->
                                 when (page.tab) {
@@ -170,49 +183,14 @@ fun MainAppScreen(
                                                 viewModel = viewModel
                                             )
                                         } else {
-                                            // 顯示檢測流程
-                                            when (val mode: DetectionMode = detectionMode) {
-                                                DetectionMode.URL -> key(DetectionMode.URL) {
-                                                    GenericDetectionFlow(
-                                                        mode = DetectionMode.URL,
-                                                        onSwitchMode = { activeDetectionMode = it },
-                                                        onExitFlow = { 
-                                                            viewModel.resetState(mode)
-                                                            activeDetectionMode = null 
-                                                        },
-                                                        viewModel = viewModel
-                                                    )
-                                                }
-                                                DetectionMode.PHONE -> key(DetectionMode.PHONE) {
-                                                    GenericDetectionFlow(
-                                                        mode = DetectionMode.PHONE,
-                                                        onNavigateToGenealogy = { genealogyPhoneNumber = it },
-                                                        onSwitchMode = { activeDetectionMode = it },
-                                                        onExitFlow = { 
-                                                            viewModel.resetState(mode)
-                                                            activeDetectionMode = null 
-                                                        },
-                                                        viewModel = viewModel
-                                                    )
-                                                }
-                                                DetectionMode.TEXT -> key(DetectionMode.TEXT) {
-                                                    GenericDetectionFlow(
-                                                        mode = DetectionMode.TEXT,
-                                                        isMultiLine = true,
-                                                        onSwitchMode = { activeDetectionMode = it },
-                                                        onExitFlow = { activeDetectionMode = null },
-                                                        viewModel = viewModel
-                                                    )
-                                                }
-                                                DetectionMode.PRICE -> key(DetectionMode.PRICE) {
-                                                    GenericDetectionFlow(
-                                                        mode = DetectionMode.PRICE,
-                                                        onSwitchMode = { activeDetectionMode = it },
-                                                        onExitFlow = { activeDetectionMode = null },
-                                                        viewModel = viewModel
-                                                    )
-                                                }
-                                            }
+                                            // 顯示檢測流程：四種模式並排於可左右滑動的頁面中
+                                            DetectionModePager(
+                                                currentMode = detectionMode,
+                                                onModeChange = { activeDetectionMode = it },
+                                                onNavigateToGenealogy = { genealogyPhoneNumber = it },
+                                                onExitFlow = { activeDetectionMode = null },
+                                                viewModel = viewModel
+                                            )
                                         }
                                     }
                                     "儀表板" -> DashboardScreen(onBack = { currentTab = "首頁" }, viewModel = viewModel)
@@ -260,14 +238,111 @@ fun MainAppScreen(
 // 主內容區目前的頁面：分頁 + 首頁內的檢測模式 (非首頁時為 null)
 private data class MainPage(val tab: String, val mode: DetectionMode?)
 
-// 檢測模式之間互切（畫面結構相同）只做短暫交叉淡化，其餘換頁使用淡出→淡入
-private fun AnimatedContentTransitionScope<MainPage>.mainPageTransition(): ContentTransform =
-    if (initialState.mode != null && targetState.mode != null) {
-        (fadeIn(tween(MODE_SWITCH_DURATION_MS)) togetherWith
-                fadeOut(tween(MODE_SWITCH_DURATION_MS))).using(null)
-    } else {
-        fadeThroughTransition()
+/**
+ * 四種檢測模式依 [DETECTION_MODE_ORDER] 並排成可左右滑動的頁面，拖曳時可看到相鄰模式（與檢測紀錄相同）。
+ * 標題與模式頁籤固定在上方不隨頁面滑動；點擊頁籤時直接跳頁不播動畫，滑動停妥後再回報新模式。
+ * 僅在目前模式停留於輸入畫面時顯示固定標題並可滑動，掃描中與結果頁維持滿版且不會被滑走。
+ */
+@Composable
+private fun DetectionModePager(
+    currentMode: DetectionMode,
+    onModeChange: (DetectionMode) -> Unit,
+    onNavigateToGenealogy: (String) -> Unit,
+    onExitFlow: () -> Unit,
+    viewModel: MainViewModel
+) {
+    val pagerState = rememberPagerState(
+        initialPage = DETECTION_MODE_ORDER.indexOf(currentMode),
+        pageCount = { DETECTION_MODE_ORDER.size }
+    )
+    val latestOnModeChange by rememberUpdatedState(onModeChange)
+
+    // 頁籤點擊：直接切換到對應頁面
+    LaunchedEffect(currentMode) {
+        val target = DETECTION_MODE_ORDER.indexOf(currentMode)
+        if (pagerState.currentPage != target && !pagerState.isScrollInProgress) {
+            pagerState.scrollToPage(target)
+        }
     }
+    // 左右滑動停妥後同步目前模式（頁籤選取狀態、返回處理皆依此）
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { page ->
+            latestOnModeChange(DETECTION_MODE_ORDER[page])
+        }
+    }
+
+    val currentState by viewModel.getState(currentMode).collectAsState()
+    val isInputStep = currentState is ScanUiState.Idle
+
+    // 各模式輸入畫面的捲動狀態：固定標題依目前頁面的捲動量一起往上位移
+    val scrollStates = remember { DETECTION_MODE_ORDER.associateWith { ScrollState(0) } }
+    var headerHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    // 左右滑動途中依頁面位移比例，在相鄰兩頁的捲動量之間內插，避免標題跳動
+    val headerScrollPx by remember {
+        derivedStateOf {
+            val page = pagerState.currentPage
+            val fraction = pagerState.currentPageOffsetFraction
+            val from = scrollStates.getValue(DETECTION_MODE_ORDER[page]).value.toFloat()
+            val neighbor = DETECTION_MODE_ORDER.getOrNull(if (fraction >= 0f) page + 1 else page - 1)
+            val to = neighbor?.let { scrollStates.getValue(it).value.toFloat() } ?: from
+            (from + (to - from) * abs(fraction)).coerceAtMost(headerHeightPx.toFloat())
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            userScrollEnabled = isInputStep,
+            key = { DETECTION_MODE_ORDER[it] }
+        ) { page ->
+            val mode = DETECTION_MODE_ORDER[page]
+            GenericDetectionFlow(
+                mode = mode,
+                isMultiLine = mode == DetectionMode.TEXT,
+                isActive = mode == currentMode,
+                showInputHeader = false,
+                inputScrollState = scrollStates.getValue(mode),
+                inputHeaderSpace = with(density) { headerHeightPx.toDp() },
+                onNavigateToGenealogy = if (mode == DetectionMode.PHONE) onNavigateToGenealogy else null,
+                onSwitchMode = onModeChange,
+                onExitFlow = {
+                    // 網址、電話離開時另外清除檢測狀態（維持原本行為）
+                    if (mode == DetectionMode.URL || mode == DetectionMode.PHONE) viewModel.resetState(mode)
+                    onExitFlow()
+                },
+                viewModel = viewModel
+            )
+        }
+
+        // 標題與頁籤：左右滑動時固定不動，上下捲動時隨內容一起移動
+        AnimatedVisibility(
+            visible = isInputStep,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.graphicsLayer { translationY = -headerScrollPx }
+        ) {
+            DetectionInputHeader(
+                // 拖曳過半即切換選取狀態，與檢測紀錄頁籤一致
+                currentMode = DETECTION_MODE_ORDER[pagerState.currentPage],
+                onSwitchMode = onModeChange,
+                // 與輸入畫面原本的返回鍵相同：清除目前模式的狀態與輸入後離開
+                onExit = {
+                    viewModel.resetState(currentMode)
+                    viewModel.setInput(currentMode, "")
+                    onExitFlow()
+                },
+                modifier = Modifier
+                    // 量在標題本身上：收起時保留最後的高度，回到輸入畫面不會跳動
+                    .onSizeChanged { headerHeightPx = it.height }
+                    // 底色遮住左右滑動時鄰頁捲上來的內容
+                    .background(AppBackgroundBrush)
+                    .padding(horizontal = 24.dp)
+            )
+        }
+    }
+}
 
 // Material fade through：舊頁先淡出，新頁接著淡入並由 96% 微幅放大，總長約 0.3s
 private fun <S> AnimatedContentTransitionScope<S>.fadeThroughTransition(): ContentTransform {
@@ -280,9 +355,6 @@ private fun <S> AnimatedContentTransitionScope<S>.fadeThroughTransition(): Conte
 private const val PAGE_EXIT_DURATION_MS = 90
 private const val PAGE_ENTER_DURATION_MS = 210
 private const val PAGE_ENTER_INITIAL_SCALE = 0.96f
-
-// 檢測模式互切的交叉淡化時間 (ms)
-private const val MODE_SWITCH_DURATION_MS = 150
 
 // 導覽列顯示／隱藏動畫時間 (ms)
 private const val BOTTOM_BAR_ANIM_DURATION_MS = 200

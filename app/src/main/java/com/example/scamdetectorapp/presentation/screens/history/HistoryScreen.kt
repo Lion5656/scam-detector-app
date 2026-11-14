@@ -5,6 +5,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.scamdetectorapp.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun HistoryScreen(onBack: () -> Unit, viewModel: MainViewModel) {
@@ -37,16 +42,27 @@ fun HistoryScreen(onBack: () -> Unit, viewModel: MainViewModel) {
     // 使用資料庫中的真實數據
     val allItems by viewModel.allHistory.collectAsStateWithLifecycle()
 
-    val filters = listOf("全部", "低風險", "中風險", "高風險", "未知")
-    var selectedFilter by remember { mutableStateOf("全部") }
+    val filters = HISTORY_FILTERS
 
-    val filteredItems = remember(selectedFilter, allItems) {
-        when (selectedFilter) {
-            "低風險" -> allItems.filter { it.riskLevel == "LOW" || it.riskLevel == "SAFE" }
-            "中風險" -> allItems.filter { it.riskLevel == "MEDIUM" }
-            "高風險" -> allItems.filter { it.riskLevel == "HIGH" }
-            "未知" -> allItems.filter { it.riskLevel == "UNKNOWN" }
-            else -> allItems
+    // 每個頁籤對應一頁，左右滑動即可切換
+    val pagerState = rememberPagerState(pageCount = { filters.size })
+    val filterRowState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    val itemsByFilter = remember(allItems) {
+        filters.map { filter -> filterHistory(allItems, filter) }
+    }
+
+    // 滑動換頁後，讓過濾列自動捲動以顯示目前選中的頁籤
+    LaunchedEffect(pagerState.currentPage) {
+        val page = pagerState.currentPage
+        val visible = filterRowState.layoutInfo.visibleItemsInfo
+        val viewportEnd = filterRowState.layoutInfo.viewportEndOffset
+        val target = visible.firstOrNull { it.index == page }
+        val fullyVisible = target != null &&
+            target.offset >= 0 && target.offset + target.size <= viewportEnd
+        if (!fullyVisible) {
+            filterRowState.animateScrollToItem((page - 1).coerceAtLeast(0))
         }
     }
 
@@ -94,15 +110,17 @@ fun HistoryScreen(onBack: () -> Unit, viewModel: MainViewModel) {
 
             // 過濾菜單列
             LazyRow(
+                state = filterRowState,
                 contentPadding = PaddingValues(horizontal = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                items(filters) { filter ->
-                    val isSelected = selectedFilter == filter
+                itemsIndexed(filters) { index, filter ->
+                    val isSelected = pagerState.currentPage == index
                     Surface(
-                        onClick = { selectedFilter = filter },
+                        // 點擊頁籤直接切換，不播放換頁動畫
+                        onClick = { scope.launch { pagerState.scrollToPage(index) } },
                         shape = RoundedCornerShape(50),
                         color = if (isSelected) Color(0xFFA78BFA).copy(alpha = 0.2f) else panelColor,
                         border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFA78BFA)) else null
@@ -120,43 +138,65 @@ fun HistoryScreen(onBack: () -> Unit, viewModel: MainViewModel) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 紀錄列表
-            if (filteredItems.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Inbox,
-                            contentDescription = null,
-                            tint = Color(0xFF666279).copy(alpha = 0.5f), // 使用紫色調，增加亮度
-                            modifier = Modifier.size(80.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "暫無紀錄",
-                            color = textWhite.copy(alpha = 0.5f),
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 40.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp) // 進一步縮小列表間距
-                ) {
-                    items(filteredItems) { item ->
-                        HistoryCard(item)
-                    }
-                }
+            // 紀錄列表（可左右滑動切換頁籤）
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) { page ->
+                HistoryPage(items = itemsByFilter[page], textWhite = textWhite)
+            }
+        }
+    }
+}
+
+private val HISTORY_FILTERS = listOf("全部", "低風險", "中風險", "高風險", "未知")
+
+private fun filterHistory(items: List<HistoryEntity>, filter: String): List<HistoryEntity> =
+    when (filter) {
+        "低風險" -> items.filter { it.riskLevel == "LOW" || it.riskLevel == "SAFE" }
+        "中風險" -> items.filter { it.riskLevel == "MEDIUM" }
+        "高風險" -> items.filter { it.riskLevel == "HIGH" }
+        "未知" -> items.filter { it.riskLevel == "UNKNOWN" }
+        else -> items
+    }
+
+@Composable
+private fun HistoryPage(items: List<HistoryEntity>, textWhite: Color) {
+    if (items.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Inbox,
+                    contentDescription = null,
+                    tint = Color(0xFF666279).copy(alpha = 0.5f), // 使用紫色調，增加亮度
+                    modifier = Modifier.size(80.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "暫無紀錄",
+                    color = textWhite.copy(alpha = 0.5f),
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 40.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp) // 進一步縮小列表間距
+        ) {
+            items(items, key = { it.id }) { item ->
+                HistoryCard(item)
             }
         }
     }

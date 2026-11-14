@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -44,6 +45,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,6 +68,13 @@ fun GenericDetectionFlow(
     isMultiLine: Boolean = false,
     onNavigateToGenealogy: ((String) -> Unit)? = null,
     onSwitchMode: (DetectionMode) -> Unit = {},
+    // 是否為目前顯示中的模式；並排於滑動頁面時，只有目前頁面處理返回鍵
+    isActive: Boolean = true,
+    // 輸入畫面是否自行繪製標題與模式頁籤；由外層固定顯示時傳 false
+    showInputHeader: Boolean = true,
+    // 外層繪製標題時傳入：輸入畫面的捲動狀態（供標題同步位移）與預留給標題的高度
+    inputScrollState: ScrollState? = null,
+    inputHeaderSpace: Dp = 0.dp,
     onExitFlow: () -> Unit = {},
     initialStep: ScreenStep? = null,
     viewModel: MainViewModel = viewModel(factory = MainViewModel.provideFactory(LocalContext.current.applicationContext as Application))
@@ -102,7 +111,7 @@ fun GenericDetectionFlow(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    BackHandler(enabled = true) {
+    BackHandler(enabled = isActive) {
         when {
             uiState is ScanUiState.Success || uiState is ScanUiState.Error -> {
                 viewModel.resetState(mode)
@@ -188,7 +197,10 @@ fun GenericDetectionFlow(
                         onExit = {
                             reset()
                             onExitFlow()
-                        }
+                        },
+                        showHeader = showInputHeader,
+                        scrollState = inputScrollState ?: rememberScrollState(),
+                        headerSpace = inputHeaderSpace
                     )
             } else {
                 InputScreen(
@@ -217,7 +229,10 @@ fun GenericDetectionFlow(
                     onExit = {
                         reset()
                         onExitFlow()
-                    }
+                    },
+                    showHeader = showInputHeader,
+                    scrollState = inputScrollState ?: rememberScrollState(),
+                    headerSpace = inputHeaderSpace
                 )
             }
         }
@@ -266,6 +281,57 @@ fun GenericDetectionFlow(
                 )
             }
         }
+    }
+}
+
+/** 檢測輸入畫面頂部：返回鍵、「開始檢測」標題與模式頁籤 */
+@Composable
+fun DetectionInputHeader(
+    currentMode: DetectionMode,
+    onSwitchMode: (DetectionMode) -> Unit,
+    onExit: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val textWhite = MaterialTheme.colorScheme.onBackground
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Spacer(modifier = Modifier.height(60.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onExit,
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Color.White.copy(alpha = 0.05f), CircleShape)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_back_less_than),
+                    contentDescription = "返回",
+                    tint = textWhite,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Text(
+                text = "開始檢測",
+                fontSize = 26.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = textWhite
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        DetectionModeTabs(
+            selected = currentMode,
+            onSelect = onSwitchMode,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -345,7 +411,10 @@ fun InputScreen(
     icon: ImageVector,
     currentMode: DetectionMode = DetectionMode.URL,
     onSwitchMode: (DetectionMode) -> Unit = {},
-    onExit: () -> Unit = {}
+    onExit: () -> Unit = {},
+    showHeader: Boolean = true,
+    scrollState: ScrollState = rememberScrollState(),
+    headerSpace: Dp = 0.dp
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -354,52 +423,23 @@ fun InputScreen(
     val panelColor = PanelColor
     val focusRequester = remember { FocusRequester() }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    // 內容不足一頁時按鈕貼齊底部；超出時標題、內容與按鈕整頁一起上下捲動
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val viewportHeight = maxHeight
         Column(
             modifier = Modifier
-                .weight(1f)
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
+                .heightIn(min = viewportHeight)
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(60.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onExit,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(Color.White.copy(alpha = 0.05f), CircleShape)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_back_less_than),
-                        contentDescription = "返回",
-                        tint = textWhite,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Text(
-                    text = "開始檢測",
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = textWhite
-                )
+            if (showHeader) {
+                DetectionInputHeader(currentMode = currentMode, onSwitchMode = onSwitchMode, onExit = onExit)
+            } else {
+                // 標題與頁籤由外層繪製並隨捲動位移，這裡保留相同高度的空間
+                Spacer(modifier = Modifier.height(headerSpace))
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            DetectionModeTabs(
-                selected = currentMode,
-                onSelect = onSwitchMode,
-                modifier = Modifier.fillMaxWidth()
-            )
 
             Spacer(modifier = Modifier.height(48.dp))
 
@@ -498,39 +538,39 @@ fun InputScreen(
                 }
             }
             Spacer(modifier = Modifier.height(40.dp))
-        }
+            Spacer(modifier = Modifier.weight(1f))
 
-        // 底部操作按鈕區域：固定在底部
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp, top = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Button(
-                onClick = onScan,
-                enabled = value.text.isNotBlank(),
+            // 底部操作按鈕區域：內容不足一頁時貼齊底部，超出時隨內容一起捲動
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = SystemBlue,
-                    disabledContainerColor = panelColor
-                )
+                    .padding(bottom = 32.dp, top = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                Button(
+                    onClick = onScan,
+                    enabled = value.text.isNotBlank(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SystemBlue,
+                        disabledContainerColor = panelColor
+                    )
                 ) {
-                    Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
-                    Spacer(Modifier.width(8.dp))
-                    Text("開始檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    Spacer(Modifier.width(32.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
+                        Spacer(Modifier.width(8.dp))
+                        Text("開始檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Spacer(Modifier.width(32.dp))
+                    }
                 }
+                Spacer(modifier = Modifier.height(28.dp))
             }
-            Spacer(modifier = Modifier.height(28.dp))
         }
     }
 }
@@ -544,7 +584,10 @@ fun PriceInputScreen(
     currentMode: DetectionMode = DetectionMode.PRICE,
     onSwitchMode: (DetectionMode) -> Unit = {},
     icon: ImageVector = VibrantIcons.PriceDetection,
-    onExit: () -> Unit = {}
+    onExit: () -> Unit = {},
+    showHeader: Boolean = true,
+    scrollState: ScrollState = rememberScrollState(),
+    headerSpace: Dp = 0.dp
 ) {
     val textWhite = MaterialTheme.colorScheme.onBackground
     val textGrey = colorResource(R.color.scam_text_grey)
@@ -574,52 +617,23 @@ fun PriceInputScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    // 內容不足一頁時按鈕貼齊底部；超出時標題、內容與按鈕整頁一起上下捲動
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val viewportHeight = maxHeight
         Column(
             modifier = Modifier
-                .weight(1f)
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
+                .heightIn(min = viewportHeight)
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(60.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onExit,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(Color.White.copy(alpha = 0.05f), CircleShape)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_back_less_than),
-                        contentDescription = "返回",
-                        tint = textWhite,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Text(
-                    text = "開始檢測",
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = textWhite
-                )
+            if (showHeader) {
+                DetectionInputHeader(currentMode = currentMode, onSwitchMode = onSwitchMode, onExit = onExit)
+            } else {
+                // 標題與頁籤由外層繪製並隨捲動位移，這裡保留相同高度的空間
+                Spacer(modifier = Modifier.height(headerSpace))
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            DetectionModeTabs(
-                selected = currentMode,
-                onSelect = onSwitchMode,
-                modifier = Modifier.fillMaxWidth()
-            )
 
             Spacer(modifier = Modifier.height(48.dp))
 
@@ -727,45 +741,45 @@ fun PriceInputScreen(
                 }
             }
             Spacer(modifier = Modifier.height(40.dp))
-        }
+            Spacer(modifier = Modifier.weight(1f))
 
-        // 底部操作按鈕區域：固定在底部
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp, top = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Button(
-                onClick = onScan,
-                enabled = imageUri != null,
+            // 底部操作按鈕區域：內容不足一頁時貼齊底部，超出時隨內容一起捲動
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = SystemBlue,
-                    disabledContainerColor = panelColor
-                )
+                    .padding(bottom = 32.dp, top = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                Button(
+                    onClick = onScan,
+                    enabled = imageUri != null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SystemBlue,
+                        disabledContainerColor = panelColor
+                    )
                 ) {
-                    Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
-                    Spacer(Modifier.width(8.dp))
-                    Text("開始檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    Spacer(Modifier.width(32.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
+                        Spacer(Modifier.width(8.dp))
+                        Text("開始檢測", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Spacer(Modifier.width(32.dp))
+                    }
                 }
-            }
 
-            Text(
-                "圖片分析可能需要 10~30 秒，請耐心等候",
-                color = textGrey,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(top = 8.dp)
-            )
+                Text(
+                    "圖片分析可能需要 10~30 秒，請耐心等候",
+                    color = textGrey,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
         }
     }
 

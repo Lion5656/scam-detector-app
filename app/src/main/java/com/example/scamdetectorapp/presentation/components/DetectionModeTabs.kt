@@ -29,6 +29,10 @@ private fun labelFor(mode: DetectionMode) = when (mode) {
     DetectionMode.PRICE -> "購物"
 }
 
+/** 頁籤由左至右的排列順序，左右滑動切換模式時也依此順序 */
+val DETECTION_MODE_ORDER: List<DetectionMode> =
+    listOf(DetectionMode.TEXT, DetectionMode.PHONE, DetectionMode.URL, DetectionMode.PRICE)
+
 /**
  * 頂部膠囊分頁：切換簡訊／電話／URL／購物檢測四種偵測模式。
  * 純文字標籤，不搭配圖示；選中項目統一用系統藍凸顯。
@@ -38,7 +42,7 @@ fun DetectionModeTabs(
     selected: DetectionMode,
     onSelect: (DetectionMode) -> Unit,
     modifier: Modifier = Modifier,
-    modes: List<DetectionMode> = listOf(DetectionMode.TEXT, DetectionMode.PHONE, DetectionMode.URL, DetectionMode.PRICE)
+    modes: List<DetectionMode> = DETECTION_MODE_ORDER
 ) {
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
     val primaryColor = MaterialTheme.colorScheme.primary
