@@ -24,6 +24,7 @@ import com.example.scamdetectorapp.presentation.screens.home.MainAppScreen
 import com.example.scamdetectorapp.presentation.screens.splash.SplashScreen
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import com.example.scamdetectorapp.service.MonitorService
+import com.example.scamdetectorapp.util.LottieAssets
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -34,6 +35,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // 閃屏播放期間先在背景解析各頁 Lottie 動畫，切換頁面時直接使用快取
+        LottieAssets.preload(this)
+
         handleIntent(intent)
 
         // 啟動自動防護服務 (若設定為開啟)

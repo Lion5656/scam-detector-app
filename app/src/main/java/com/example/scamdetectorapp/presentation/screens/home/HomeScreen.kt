@@ -45,6 +45,7 @@ import com.example.scamdetectorapp.data.repository.NewsType
 import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import com.example.scamdetectorapp.service.MonitorService
 import com.example.scamdetectorapp.ui.theme.*
+import com.example.scamdetectorapp.util.LottieAssets
 import com.airbnb.lottie.compose.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -248,7 +249,7 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
 
     // 加載新版 Lottie 機器人動畫
     val composition by rememberLottieComposition(
-        LottieCompositionSpec.Asset("Robot assistant  Online manager.lottie")
+        LottieCompositionSpec.Asset(LottieAssets.HOME_ROBOT)
     )
 
     // 保留 State 物件，於 offset { } 的 layout 階段才讀取，避免機器人 (含 Lottie) 每幀重組

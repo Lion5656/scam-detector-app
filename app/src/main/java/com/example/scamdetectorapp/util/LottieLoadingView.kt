@@ -18,7 +18,7 @@ fun LottieLoadingView(
     size: Dp = 120.dp
 ) {
     val composition by rememberLottieComposition(
-        LottieCompositionSpec.Asset("loading.lottie")
+        LottieCompositionSpec.Asset(LottieAssets.LOADING)
     )
     
     LottieAnimation(

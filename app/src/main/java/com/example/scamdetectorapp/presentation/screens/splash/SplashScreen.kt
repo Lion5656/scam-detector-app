@@ -14,13 +14,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.airbnb.lottie.compose.*
+import com.example.scamdetectorapp.util.LottieAssets
 import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(onFinished: () -> Unit) {
     // 載入 Lottie 組成
     val composition by rememberLottieComposition(
-        LottieCompositionSpec.Asset("ECM - Nominal Case.lottie")
+        LottieCompositionSpec.Asset(LottieAssets.SPLASH)
     )
     
     // 控制動畫播放進度

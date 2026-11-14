@@ -35,6 +35,7 @@ import com.example.scamdetectorapp.presentation.viewmodel.MainViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.res.painterResource
 import com.example.scamdetectorapp.R
+import com.example.scamdetectorapp.util.LottieAssets
 
 @Composable
 fun DashboardScreen(
@@ -54,7 +55,7 @@ fun DashboardScreen(
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF06090E))) {
         // 使用 Lottie 全螢幕動態背景
         val composition by rememberLottieComposition(
-            LottieCompositionSpec.Asset("Background Full Screen-Night.lottie")
+            LottieCompositionSpec.Asset(LottieAssets.DASHBOARD_BACKGROUND)
         )
 
         LottieAnimation(
