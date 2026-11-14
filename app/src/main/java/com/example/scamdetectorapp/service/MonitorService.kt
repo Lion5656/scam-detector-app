@@ -45,8 +45,11 @@ class MonitorService : Service(){
     // 動態讀取受監控 APP 的 Package Name
     private var targetAppPackages = emptySet<String>()
 
-    // 自定義白名單號碼
-    private var customWhitelist = emptySet<String>()
+    // 自定義白名單號碼 (已正規化為純數字，避免監控迴圈每輪重新處理)
+    @Volatile private var customWhitelistDigits = emptySet<String>()
+
+    // 本通電話的信任判斷快取 (號碼 to 是否信任)，避免通話中每 3 秒重複查詢聯絡人資料庫
+    @Volatile private var trustCache: Pair<String, Boolean>? = null
 
     // 當前通話號碼
     private var currentCallNumber: String? = null
@@ -91,8 +94,9 @@ class MonitorService : Service(){
         }
         serviceScope.launch {
             settingsManager.customWhitelist.collect { whitelist ->
-                customWhitelist = whitelist
-                DebugLog.d(TAG, "Updated custom whitelist: ${customWhitelist.size}")
+                customWhitelistDigits = whitelist.map { number -> number.filter { it.isDigit() } }.toSet()
+                trustCache = null // 白名單變動後需重新判斷
+                DebugLog.d(TAG, "Updated custom whitelist: ${customWhitelistDigits.size}")
             }
         }
     }
@@ -124,6 +128,7 @@ class MonitorService : Service(){
         serviceScope.launch {
             settingsManager.isContactsEnabled.collect { enabled ->
                 isContactsEnabled = enabled
+                trustCache = null // 聯絡人信任開關變動後需重新判斷
                 DebugLog.d(TAG, "Contacts protection enabled: $isContactsEnabled")
             }
         }
@@ -274,6 +279,7 @@ class MonitorService : Service(){
         isMonitoring = false
         monitorJob?.cancel()
         lastWarningTime = 0L
+        trustCache = null // 通話結束，下一通電話重新判斷
         changeState(MonitorState.Idle)
     }
 
@@ -318,12 +324,20 @@ class MonitorService : Service(){
         }
 
         val number = currentCallNumber ?: return false
-        
+
+        // 同一通電話的號碼與設定未變時，直接使用快取結果
+        trustCache?.let { (cachedNumber, trusted) ->
+            if (cachedNumber == number) return trusted
+        }
+
+        val trusted = isTrustedNumber(number)
+        trustCache = number to trusted
+        return trusted
+    }
+
+    private fun isTrustedNumber(number: String): Boolean {
         // 1. 檢查自定義白名單 (需比對純數字)
-        val rawNumber = number.filter { it.isDigit() }
-        val isWhitelisted = customWhitelist.any { it.filter { digit -> digit.isDigit() } == rawNumber }
-        
-        if (isWhitelisted) {
+        if (number.filter { it.isDigit() } in customWhitelistDigits) {
             DebugLog.d(TAG, "Call number $number is in custom whitelist, skipping monitoring")
             return true
         }
@@ -333,7 +347,7 @@ class MonitorService : Service(){
             DebugLog.d(TAG, "Call number $number is in contacts, skipping monitoring")
             return true
         }
-        
+
         return false
     }
 
