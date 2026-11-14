@@ -1,6 +1,7 @@
 package com.example.scamdetectorapp.service
 
 
+import com.example.scamdetectorapp.util.DebugLog
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -85,20 +86,20 @@ class MonitorService : Service(){
         serviceScope.launch {
             settingsManager.protectedApps.collect { apps ->
                 targetAppPackages = apps
-                Log.d(TAG, "Updated target apps: ${targetAppPackages.size}")
+                DebugLog.d(TAG, "Updated target apps: ${targetAppPackages.size}")
             }
         }
         serviceScope.launch {
             settingsManager.customWhitelist.collect { whitelist ->
                 customWhitelist = whitelist
-                Log.d(TAG, "Updated custom whitelist: ${customWhitelist.size}")
+                DebugLog.d(TAG, "Updated custom whitelist: ${customWhitelist.size}")
             }
         }
     }
 
     // 建立服務生命週期
     override fun onCreate(){
-        Log.d(TAG, "service created")
+        DebugLog.d(TAG, "service created")
         
         // 在 onCreate 最開始立即啟動前景通知
         startForegroundServiceNotification()
@@ -115,7 +116,7 @@ class MonitorService : Service(){
         serviceScope.launch {
             settingsManager.isProtectionEnabled.collect { enabled ->
                 if (!enabled) {
-                    Log.d(TAG, "Protection disabled from settings, stopping service")
+                    DebugLog.d(TAG, "Protection disabled from settings, stopping service")
                     stopSelf()
                 }
             }
@@ -123,7 +124,7 @@ class MonitorService : Service(){
         serviceScope.launch {
             settingsManager.isContactsEnabled.collect { enabled ->
                 isContactsEnabled = enabled
-                Log.d(TAG, "Contacts protection enabled: $isContactsEnabled")
+                DebugLog.d(TAG, "Contacts protection enabled: $isContactsEnabled")
             }
         }
         
@@ -133,7 +134,7 @@ class MonitorService : Service(){
 
             stateListenJob = serviceScope.launch {
                 callStateMonitor.callState.collectLatest { state ->
-                    Log.d(TAG, "狀態 state $state")
+                    DebugLog.d(TAG, "狀態 state $state")
                     if(state == TelephonyManager.CALL_STATE_OFFHOOK){
                         startMonitoring()
                     }
@@ -146,13 +147,13 @@ class MonitorService : Service(){
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "service start command received")
+        DebugLog.d(TAG, "service start command received")
         
         // 取得傳入的電話號碼
         val phoneNumber = intent?.getStringExtra(EXTRA_PHONE_NUMBER)
         if (phoneNumber != null) {
             currentCallNumber = phoneNumber
-            Log.d(TAG, "Current call number updated: $currentCallNumber")
+            DebugLog.d(TAG, "Current call number updated: $currentCallNumber")
         }
         
         return START_STICKY
@@ -164,7 +165,7 @@ class MonitorService : Service(){
         overlay.close()
         callStateMonitor.stopListening()
         serviceScope.cancel()
-        Log.d(TAG, "service destroyed")
+        DebugLog.d(TAG, "service destroyed")
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
@@ -188,7 +189,7 @@ class MonitorService : Service(){
 
         monitorJob = serviceScope.launch {
             while(isActive){
-                Log.d(TAG, "Monitoring...")
+                DebugLog.d(TAG, "Monitoring...")
 
                 // 1. 每輪只呼叫一次更新，並拿到最新的狀態物件
                 permissionManager.updatePermissionStatus()
@@ -230,7 +231,7 @@ class MonitorService : Service(){
     }
 
     private fun changeState(state : MonitorState){
-        Log.d(TAG, "state changed: $currentState -> $state")
+        DebugLog.d(TAG, "state changed: $currentState -> $state")
         currentState = state
     }
 
@@ -310,7 +311,7 @@ class MonitorService : Service(){
         // 如果 Intent 沒帶號碼，嘗試從通話紀錄抓最後一筆
         if (currentCallNumber == null) {
             currentCallNumber = contactManager.getLastCallNumber()
-            Log.d(TAG, "Attempted to recover number from CallLog: $currentCallNumber")
+            DebugLog.d(TAG, "Attempted to recover number from CallLog: $currentCallNumber")
         }
 
         val number = currentCallNumber ?: return false
@@ -320,13 +321,13 @@ class MonitorService : Service(){
         val isWhitelisted = customWhitelist.any { it.filter { digit -> digit.isDigit() } == rawNumber }
         
         if (isWhitelisted) {
-            Log.d(TAG, "Call number $number is in custom whitelist, skipping monitoring")
+            DebugLog.d(TAG, "Call number $number is in custom whitelist, skipping monitoring")
             return true
         }
 
         // 2. 檢查通訊錄 (如果開啟)
         if (isContactsEnabled && contactManager.isNumberInContacts(number)) {
-            Log.d(TAG, "Call number $number is in contacts, skipping monitoring")
+            DebugLog.d(TAG, "Call number $number is in contacts, skipping monitoring")
             return true
         }
         

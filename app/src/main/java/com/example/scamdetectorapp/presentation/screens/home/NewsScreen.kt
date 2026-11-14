@@ -1,5 +1,6 @@
 package com.example.scamdetectorapp.presentation.screens.home
 
+import com.example.scamdetectorapp.util.DebugLog
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -43,7 +44,7 @@ fun NewsScreen(onBack: () -> Unit, viewModel: MainViewModel) {
 
     // 進入頁面時先顯示預載資料，並於背景靜默更新
     LaunchedEffect(Unit) {
-        android.util.Log.d("NewsScreen", "LaunchedEffect: Triggering background refreshNews()")
+        DebugLog.d("NewsScreen", "LaunchedEffect: Triggering background refreshNews()")
         viewModel.refreshNews()
     }
 

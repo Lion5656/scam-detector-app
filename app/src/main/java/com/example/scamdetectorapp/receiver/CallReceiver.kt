@@ -1,5 +1,6 @@
 package com.example.scamdetectorapp.receiver
 
+import com.example.scamdetectorapp.util.DebugLog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -45,7 +46,7 @@ class CallReceiver : BroadcastReceiver() {
                             phoneNumber = contactManager.getLastCallNumber()
                         }
 
-                        Log.d(TAG, "Call detected. Captured number: $phoneNumber")
+                        DebugLog.d(TAG, "Call detected. Captured number: $phoneNumber")
                         
                         val serviceIntent = Intent(context, MonitorService::class.java).apply {
                             if (phoneNumber != null) {

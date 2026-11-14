@@ -1,5 +1,6 @@
 package com.example.scamdetectorapp.manager
 
+import com.example.scamdetectorapp.util.DebugLog
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -27,17 +28,17 @@ class CallStateMonitor (private val context : Context){
         override fun onCallStateChanged(state: Int) {
             when(state){
                 TelephonyManager.CALL_STATE_IDLE -> {
-                    Log.d(TAG, "Call Ended")
+                    DebugLog.d(TAG, "Call Ended")
                     _callState.value = TelephonyManager.CALL_STATE_IDLE
                 }
 
                 TelephonyManager.CALL_STATE_OFFHOOK -> {
-                    Log.d(TAG, "In Call")
+                    DebugLog.d(TAG, "In Call")
                     _callState.value = TelephonyManager.CALL_STATE_OFFHOOK
                 }
 
                 TelephonyManager.CALL_STATE_RINGING -> {
-                    Log.d(TAG, "Ringing")
+                    DebugLog.d(TAG, "Ringing")
                     _callState.value = TelephonyManager.CALL_STATE_RINGING
                 }
             }

@@ -1,5 +1,6 @@
 package com.example.scamdetectorapp.data.repository
 
+import com.example.scamdetectorapp.util.DebugLog
 import android.util.Log
 import com.example.scamdetectorapp.data.remote.RetrofitClient
 import kotlinx.coroutines.*
@@ -51,13 +52,13 @@ object NewsRepository {
      * 失敗時回傳 Result.failure，由呼叫端決定保留快取或顯示錯誤項目。
      */
     suspend fun fetchAllLatestNews(): Result<List<NewsItem>> = withContext(Dispatchers.IO) {
-        Log.d("NewsRepository", "--- 開始連線至 Cloudflare Worker ---")
+        DebugLog.d("NewsRepository", "--- 開始連線至 Cloudflare Worker ---")
         try {
             // 直接呼叫 API，不再有任何 NewsAggregator 的殘留
             val remoteNews = RetrofitClient.newsApiService.getLatestNews()
 
             if (remoteNews.isNotEmpty()) {
-                Log.d("NewsRepository", "成功取得 ${remoteNews.size} 則新聞")
+                DebugLog.d("NewsRepository", "成功取得 ${remoteNews.size} 則新聞")
                 // 在標題前加上標記，方便確認是抓到的資料
                 Result.success(remoteNews.map { it.copy(title = "[最新] ${it.title}") })
             } else {

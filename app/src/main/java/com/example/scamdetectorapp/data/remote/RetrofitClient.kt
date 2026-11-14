@@ -1,5 +1,6 @@
 package com.example.scamdetectorapp.data.remote
 
+import com.example.scamdetectorapp.util.DebugLog
 import android.util.Log
 import com.example.scamdetectorapp.BuildConfig
 import okhttp3.OkHttpClient
@@ -14,35 +15,31 @@ object RetrofitClient {
 
     init {
         System.loadLibrary("scamdetectorapp")
-        Log.d("RetrofitClient", "Initializing RetrofitClient")
+        DebugLog.d("RetrofitClient", "Initializing RetrofitClient")
     }
 
     private external fun getApiKey(): String
 
+    // 金鑰於程序生命週期內不變，只透過 JNI 讀取一次，避免每個請求都跨 JNI 呼叫
+    private val cachedApiKey: String by lazy {
+        getApiKey().also {
+            if (it.isEmpty()) Log.e("RetrofitClient", "Native getApiKey() returned an empty key")
+        }
+    }
+
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor { chain ->
-            val apiKey = getApiKey()
-            // 檢查 Key 是否成功從 C++ 取得
-            if (apiKey.isEmpty()) {
-                Log.e("RetrofitClient", "ERROR: Native getApiKey() returned EMPTY string!")
-            } else {
-                Log.d("RetrofitClient", "Native getApiKey() success. Length: ${apiKey.length}")
-            }
-
             val original = chain.request()
-            
-            // 加入 Debug Log 協助確認 Header 是否成功帶入
-            Log.d("RetrofitClient", "--> Sending Request to: ${original.url}")
-            Log.d("RetrofitClient", "Using API_KEY: ${if(apiKey.isEmpty()) "EMPTY!" else "Loaded (Length: ${apiKey.length})"}")
+            DebugLog.d("RetrofitClient", "--> ${original.method} ${original.url}")
 
             val request = original.newBuilder()
-                .header("x-api-key", apiKey)
+                .header("x-api-key", cachedApiKey)
                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36")
                 .method(original.method, original.body)
                 .build()
-            
+
             val response = chain.proceed(request)
-            Log.d("RetrofitClient", "<-- Received Response: ${response.code}")
+            DebugLog.d("RetrofitClient", "<-- ${response.code} ${original.url}")
             response
         }
         .connectTimeout(30, TimeUnit.SECONDS)

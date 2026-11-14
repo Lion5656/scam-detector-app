@@ -1,5 +1,6 @@
 package com.example.scamdetectorapp.receiver
 
+import com.example.scamdetectorapp.util.DebugLog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -24,7 +25,7 @@ class BootReceiver : BroadcastReceiver() {
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     if (settingsManager.isProtectionEnabled.first()) {
-                        Log.d("BootReceiver", "Protection enabled, starting MonitorService")
+                        DebugLog.d("BootReceiver", "Protection enabled, starting MonitorService")
                         val serviceIntent = Intent(context, MonitorService::class.java)
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             context.startForegroundService(serviceIntent)

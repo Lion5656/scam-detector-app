@@ -1,5 +1,6 @@
 package com.example.scamdetectorapp.presentation.viewmodel
 
+import com.example.scamdetectorapp.util.DebugLog
 import android.app.Application
 import android.content.ComponentName
 import android.content.pm.PackageManager
@@ -143,7 +144,7 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
             permissionStatus.collect { _ ->
                 // 檢查核心權限
                 if (!hasDisplayPermissions() && isProtectionEnabled.value) {
-                    Log.d("MainViewModel", "Core permissions lost, disabling protection")
+                    DebugLog.d("MainViewModel", "Core permissions lost, disabling protection")
                     settingsManager.setProtectionEnabled(false)
                 }
             }
@@ -184,7 +185,7 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
             _isInstalledAppsLoading.value = true
             try {
                 _installedApps.value = withContext(Dispatchers.IO) { queryInstalledApps() }
-                Log.d("MainViewModel", "Preloaded ${_installedApps.value.size} installed apps")
+                DebugLog.d("MainViewModel", "Preloaded ${_installedApps.value.size} installed apps")
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -413,7 +414,7 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
                 else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                 PackageManager.DONT_KILL_APP
             )
-            Log.d("MainViewModel", "Share component enabled: $enabled")
+            DebugLog.d("MainViewModel", "Share component enabled: $enabled")
         } catch (e: Exception) {
             Log.e("MainViewModel", "Failed to update share component", e)
         }

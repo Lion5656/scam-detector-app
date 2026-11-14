@@ -1,5 +1,6 @@
 package com.example.scamdetectorapp.data.repository
 
+import com.example.scamdetectorapp.util.DebugLog
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -57,10 +58,10 @@ class AntiFraudRepository(private val context: Context? = null) {
             val result = when (mode) {
                 DetectionMode.PHONE -> {
                     val response = api.queryPhoneNum(body = PhoneQueryRequest(phoneNumber = input))
-                    Log.d("AntiFraudRepository", "response: ${response.data}")
+                    DebugLog.d("AntiFraudRepository", "response: ${response.data}")
                     if (response.success) {
                         val data = response.data
-                        Log.d("AntiFraudRepository", "Phone data: $data")
+                        DebugLog.d("AntiFraudRepository", "Phone data: $data")
                         var riskLevel: String
                         val statusLower = data?.status?.lowercase() ?: ""
                         if (statusLower == "white") {
@@ -264,7 +265,7 @@ class AntiFraudRepository(private val context: Context? = null) {
                     otherType = normalizedOtherType
                 )
             )
-            Log.d("AntiFraudRepository", "Report response: ${response.data}")
+            DebugLog.d("AntiFraudRepository", "Report response: ${response.data}")
 
             if (!response.success) {
                 throw Exception(response.errorMessage ?: "回報失敗")

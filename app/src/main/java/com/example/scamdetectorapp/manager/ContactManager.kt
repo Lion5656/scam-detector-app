@@ -1,5 +1,6 @@
 package com.example.scamdetectorapp.manager
 
+import com.example.scamdetectorapp.util.DebugLog
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -42,7 +43,7 @@ class ContactManager(private val context: Context) {
                 val found = cursor.moveToFirst()
                 if (found) {
                     val name = cursor.getString(0)
-                    Log.d(TAG, "Found contact for $phoneNumber: $name")
+                    DebugLog.d(TAG, "Found contact for $phoneNumber: $name")
                 }
                 found
             } ?: false
@@ -90,7 +91,7 @@ class ContactManager(private val context: Context) {
             }?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     val number = cursor.getString(0)
-                    Log.d(TAG, "Latest call number from log: $number")
+                    DebugLog.d(TAG, "Latest call number from log: $number")
                     number
                 } else null
             }

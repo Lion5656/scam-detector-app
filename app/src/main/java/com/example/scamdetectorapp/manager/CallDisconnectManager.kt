@@ -1,5 +1,6 @@
 package com.example.scamdetectorapp.manager
 
+import com.example.scamdetectorapp.util.DebugLog
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -24,7 +25,7 @@ class CallDisconnectManager(private val context : Context) {
                 try {
                     @Suppress("MissingPermission")
                     val success = telecomManager.endCall()
-                    Log.d(TAG, "已送出掛斷指令，狀態: $success")
+                    DebugLog.d(TAG, "已送出掛斷指令，狀態: $success")
                     return success
                 }
                 catch(e: Exception) {
