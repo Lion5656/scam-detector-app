@@ -354,7 +354,10 @@ class MainViewModel(application: Application, private val repository: AntiFraudR
                 labels = trendLabels
             )
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardStats(0, 0, 0, 0, emptyList(), emptyList(), com.example.scamdetectorapp.presentation.model.RiskTrendData(emptyList(), emptyList(), emptyList(), emptyList())))
+    }
+        // 統計需遍歷全部歷史紀錄，移至背景執行緒計算，避免紀錄多時阻塞主執行緒
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardStats(0, 0, 0, 0, emptyList(), emptyList(), com.example.scamdetectorapp.presentation.model.RiskTrendData(emptyList(), emptyList(), emptyList(), emptyList())))
 
     fun getState(mode: DetectionMode): StateFlow<ScanUiState> = when (mode) {
         DetectionMode.URL -> urlState
