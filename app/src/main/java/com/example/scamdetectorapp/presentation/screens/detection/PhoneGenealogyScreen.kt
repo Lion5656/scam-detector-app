@@ -375,14 +375,13 @@ fun GenealogySatelliteGraph(
     onNodeClick: (GenealogyNode) -> Unit
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "orbit")
-    val orbitRotation by infiniteTransition.animateFloat(
+    // 保留 State 物件、只在繪製與點擊時讀取 .value：旋轉每幀只觸發重繪，不會讓整個元件重組
+    val orbitRotation = infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(tween(30000, easing = LinearEasing)),
         label = "rotate"
     )
-    // pointerInput 只以 data 為 key，旋轉角度透過 rememberUpdatedState 讀取，避免每幀重啟手勢偵測
-    val currentRotation by rememberUpdatedState(orbitRotation)
     val currentOnNodeClick by rememberUpdatedState(onNodeClick)
 
     val count = data.relatedNodes.size
@@ -416,7 +415,7 @@ fun GenealogySatelliteGraph(
                         val center = Offset(size.width / 2f, size.height / 2f)
                         data.relatedNodes.indices
                             .firstOrNull { index ->
-                                val nodePos = nodeCenter(center, layout.orbitRadius, index, count, currentRotation)
+                                val nodePos = nodeCenter(center, layout.orbitRadius, index, count, orbitRotation.value)
                                 (offset - nodePos).getDistance() <= layout.touchRadius
                             }
                             ?.let { currentOnNodeClick(data.relatedNodes[it]) }
@@ -442,8 +441,9 @@ fun GenealogySatelliteGraph(
                 topLeft = Offset(center.x - textCache.rootText.size.width / 2, center.y - textCache.rootText.size.height / 2)
             )
 
+            val rotation = orbitRotation.value
             data.relatedNodes.forEachIndexed { index, node ->
-                val nodePos = nodeCenter(center, layout.orbitRadius, index, count, orbitRotation)
+                val nodePos = nodeCenter(center, layout.orbitRadius, index, count, rotation)
 
                 drawCircle(NodeInnerFill, layout.nodeRadius, nodePos)
                 drawCircle(nodeRingColor(node.connectionStrength), layout.nodeRadius, nodePos, style = Stroke(width = ringWidth))

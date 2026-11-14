@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -250,7 +251,8 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
         LottieCompositionSpec.Asset("Robot assistant  Online manager.lottie")
     )
 
-    val floatAnim by infiniteTransition.animateFloat(0f, 10.dp.value, infiniteRepeatable(tween(2500, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "float")
+    // 保留 State 物件，於 offset { } 的 layout 階段才讀取，避免機器人 (含 Lottie) 每幀重組
+    val floatAnim = infiniteTransition.animateFloat(0f, 10.dp.value, infiniteRepeatable(tween(2500, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "float")
     val rotation by infiniteTransition.animateFloat(0f, 360f, infiniteRepeatable(tween(8000, easing = LinearEasing)), label = "rotate")
 
     LaunchedEffect(Unit) {
@@ -265,7 +267,7 @@ fun DynamicAiRobot(modifier: Modifier, onNavigate: () -> Unit) {
 
     Box(
         modifier = modifier
-            .offset(y = floatAnim.dp)
+            .offset { IntOffset(0, floatAnim.value.dp.roundToPx()) }
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                 if (!isCharging) {
                     isCharging = true
